@@ -1,5 +1,6 @@
-import { FileText, FilePlus, LogOut, Edit3 } from 'lucide-react';
+import { FileText, FilePlus, LogOut, Edit3, Image, Tag } from 'lucide-react';
 import { getAllPublishedArticles, getAllDrafts } from '../../lib/mockData';
+import { getAllGalleryImages } from '../../lib/galleryData';
 
 interface DashboardProps {
   onNavigate: (page: string) => void;
@@ -10,6 +11,8 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
   const published = getAllPublishedArticles();
   const drafts = getAllDrafts();
   const recentDrafts = drafts.slice(0, 5);
+  const galleryImages = getAllGalleryImages();
+  const recentImages = galleryImages.slice(0, 6);
 
   return (
     <div className="min-h-screen bg-background">
@@ -83,6 +86,19 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
             >
               New Post
             </button>
+            <button
+              onClick={() => onNavigate('gallery-manager')}
+              className="px-6 py-3 border border-border hover:border-foreground transition-colors"
+            >
+              Manage Gallery
+            </button>
+            <button
+              onClick={() => onNavigate('category-manager')}
+              className="flex items-center gap-2 px-6 py-3 border border-border hover:border-foreground transition-colors"
+            >
+              <Tag className="w-4 h-4" />
+              Manage Categories
+            </button>
           </div>
         </div>
 
@@ -105,6 +121,55 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
                   </div>
                   <div className="meta text-muted-foreground">
                     {draft.date}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recent Gallery Images */}
+        {recentImages.length > 0 && (
+          <div className="mt-12">
+            <div className="flex items-center justify-between mb-6 pb-3 border-b border-border">
+              <h2 className="text-xl">Gallery Overview</h2>
+              <button
+                onClick={() => onNavigate('gallery-manager')}
+                className="meta text-muted-foreground hover:text-foreground transition-colors underline"
+              >
+                View All ({galleryImages.length})
+              </button>
+            </div>
+            
+            {/* Gallery Stats */}
+            <div className="bg-card border border-border p-6 mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="section-label text-muted-foreground">Total Images</span>
+                <Image className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div className="text-3xl font-medium">{galleryImages.length}</div>
+            </div>
+
+            {/* Recent Images Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {recentImages.map(image => (
+                <div
+                  key={image.id}
+                  className="group cursor-pointer"
+                  onClick={() => onNavigate('gallery-manager')}
+                >
+                  <div className="overflow-hidden mb-2 bg-secondary border border-border group-hover:border-foreground transition-colors">
+                    <img
+                      src={image.url}
+                      alt={image.caption || 'Gallery image'}
+                      className="w-full h-32 object-cover group-hover:opacity-90 transition-opacity"
+                    />
+                  </div>
+                  {image.caption && (
+                    <div className="text-sm font-medium truncate">{image.caption}</div>
+                  )}
+                  <div className="meta text-muted-foreground text-xs">
+                    {image.category}
                   </div>
                 </div>
               ))}

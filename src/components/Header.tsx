@@ -4,7 +4,7 @@ interface HeaderProps {
 }
 
 export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
-  const sections = ['Editorial', 'Notes', 'Diary', 'Archive', 'About'];
+  const sections = ['Editorial', 'Notes', 'Diary', 'Gallery', 'Archive', 'About'];
 
   return (
     <header className="border-b border-border bg-background">

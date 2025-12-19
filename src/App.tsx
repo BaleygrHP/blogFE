@@ -8,10 +8,13 @@ import { DiaryPage } from './components/DiaryPage';
 import { ArchivePage } from './components/ArchivePage';
 import { AboutPage } from './components/AboutPage';
 import { ArticlePage } from './components/ArticlePage';
+import { GalleryPage } from './components/GalleryPage';
 import { Login } from './components/admin/Login';
 import { Dashboard } from './components/admin/Dashboard';
 import { PostsList } from './components/admin/PostsList';
 import { PostEditor } from './components/admin/PostEditor';
+import { GalleryManager } from './components/admin/GalleryManager';
+import { CategoryManager } from './components/admin/CategoryManager';
 import { getArticleById } from './lib/mockData';
 
 type Page = 
@@ -19,6 +22,7 @@ type Page =
   | 'editorial' 
   | 'notes' 
   | 'diary' 
+  | 'gallery'
   | 'archive' 
   | 'about' 
   | 'article'
@@ -26,7 +30,9 @@ type Page =
   | 'dashboard'
   | 'posts'
   | 'new-post'
-  | 'edit-post';
+  | 'edit-post'
+  | 'gallery-manager'
+  | 'category-manager';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -58,11 +64,14 @@ export default function App() {
       editorial: 'editorial',
       notes: 'notes',
       diary: 'diary',
+      gallery: 'gallery',
       archive: 'archive',
       about: 'about',
       dashboard: 'dashboard',
       posts: 'posts',
-      'new-post': 'new-post'
+      'new-post': 'new-post',
+      'gallery-manager': 'gallery-manager',
+      'category-manager': 'category-manager'
     };
 
     setCurrentPage(pageMap[page] || 'home');
@@ -141,6 +150,20 @@ export default function App() {
     );
   }
 
+  if (currentPage === 'gallery-manager') {
+    if (!isAuthenticated) {
+      return <Login onLogin={handleLogin} />;
+    }
+    return <GalleryManager onNavigate={handleNavigate} onLogout={handleLogout} />;
+  }
+
+  if (currentPage === 'category-manager') {
+    if (!isAuthenticated) {
+      return <Login onLogin={handleLogin} />;
+    }
+    return <CategoryManager onNavigate={handleNavigate} onLogout={handleLogout} />;
+  }
+
   // Public Routes
   return (
     <div className="min-h-screen bg-background">
@@ -162,6 +185,7 @@ export default function App() {
           onBack={handleBackToHome}
         />
       )}
+      {currentPage === 'gallery' && <GalleryPage />}
 
       {/* Footer */}
       {currentPage !== 'article' && (

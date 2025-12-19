@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { ArrowLeft, Save, Eye } from 'lucide-react';
+import { Edit3, LogOut, Save, Eye, ArrowLeft } from 'lucide-react';
+import { Article, getArticleById } from '../../lib/mockData';
+import { getBlogCategoryNames } from '../../lib/categoryData';
 
 interface Post {
   id: number;
@@ -27,7 +29,7 @@ export function PostEditor({ post, onSave, onCancel }: PostEditorProps) {
     post || {
       id: Date.now(),
       title: '',
-      section: 'Editorial',
+      section: getBlogCategoryNames()[0],
       status: 'draft',
       author: 'Editorial Board',
       date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
@@ -158,9 +160,9 @@ Regular paragraph text.
                 onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                 className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
               >
-                <option value="Editorial">Editorial</option>
-                <option value="Notes">Notes</option>
-                <option value="Diary">Diary</option>
+                {getBlogCategoryNames().map(section => (
+                  <option key={section} value={section}>{section}</option>
+                ))}
               </select>
             </div>
 
