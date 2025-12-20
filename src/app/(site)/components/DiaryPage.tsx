@@ -1,4 +1,4 @@
-import { getArticlesBySection } from '../lib/mockData';
+import { getArticlesBySection } from '../../../lib/mockData';
 
 interface DiaryPageProps {
   onReadArticle: (id: number) => void;

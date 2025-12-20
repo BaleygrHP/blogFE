@@ -7,7 +7,7 @@ import {
   getEditorialPicks,
   getNotesArticles,
   getDiaryEntries
-} from '../lib/mockData';
+} from '../../../lib/mockData';
 
 interface FrontPageProps {
   onReadArticle: (id: number) => void;

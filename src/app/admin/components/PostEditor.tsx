@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Edit3, LogOut, Save, Eye, ArrowLeft } from 'lucide-react';
-import { Article, getArticleById } from '../../lib/mockData';
-import { getBlogCategoryNames } from '../../lib/categoryData';
+import { Article, getArticleById } from '../../../lib/mockData';
+import { getBlogCategoryNames } from '../../../lib/categoryData';
 
 interface Post {
   id: number;

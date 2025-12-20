@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getAllGalleryImages, GalleryImage } from '../lib/galleryData';
-import { getGalleryCategoryNames } from '../lib/categoryData';
+import { getAllGalleryImages, GalleryImage } from '../../../lib/galleryData';
+import { getGalleryCategoryNames } from '../../../lib/categoryData';
 
 const IMAGES_PER_PAGE = 12;
 

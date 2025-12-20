@@ -15,8 +15,8 @@ export function AboutPage() {
 
         <p>
           This site follows the principles of quiet UI design: text-first, minimal distractions, 
-          and respect for the reader's attention. The design isn't meant to be invisible, 
-          but it shouldn't compete with the content.
+          and respect for the reader&apos;s attention. The design isn&apos;t meant to be invisible, 
+          but it shouldn&apos;t compete with the content.
         </p>
 
         <h2>Structure</h2>

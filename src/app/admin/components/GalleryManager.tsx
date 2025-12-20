@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Edit3, LogOut, Trash2, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { galleryImages, GalleryImage } from '../../lib/galleryData';
-import { getGalleryCategoryNames } from '../../lib/categoryData';
+import { galleryImages, GalleryImage } from '../../../lib/galleryData';
+import { getGalleryCategoryNames } from '../../../lib/categoryData';
 
 const IMAGES_PER_PAGE = 12;
 

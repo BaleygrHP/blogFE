@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getAllPublishedArticles } from '../lib/mockData';
+import { getAllPublishedArticles } from '../../../lib/mockData';
 
 interface ArchivePageProps {
   onReadArticle: (id: number) => void;

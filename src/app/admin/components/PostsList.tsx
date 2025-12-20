@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Edit3, LogOut, Eye, EyeOff, Trash2 } from 'lucide-react';
-import { allArticles } from '../../lib/mockData';
+import { allArticles } from '../../../lib/mockData';
 
 interface PostsListProps {
   onNavigate: (page: string) => void;

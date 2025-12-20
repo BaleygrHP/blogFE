@@ -19,7 +19,8 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
               The Daily Chronicle
             </h1>
           </button>
-          <p className="meta mt-2">A Personal Newsroom</p>
+          <h2> Biên niên sử của Hưng </h2>
+          <p className="meta mt-2">A Personal Newsroom - hồi kí của 1 rân chơi</p>
         </div>
 
         {/* Navigation */}

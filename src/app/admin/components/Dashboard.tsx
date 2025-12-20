@@ -1,6 +1,6 @@
 import { FileText, FilePlus, LogOut, Edit3, Image, Tag } from 'lucide-react';
-import { getAllPublishedArticles, getAllDrafts } from '../../lib/mockData';
-import { getAllGalleryImages } from '../../lib/galleryData';
+import { getAllPublishedArticles, getAllDrafts } from '../../../lib/mockData';
+import { getAllGalleryImages } from '../../../lib/galleryData';
 
 interface DashboardProps {
   onNavigate: (page: string) => void;

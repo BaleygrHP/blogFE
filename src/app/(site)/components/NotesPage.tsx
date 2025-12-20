@@ -1,5 +1,5 @@
 import { ArticleList } from './ArticleList';
-import { getArticlesBySection } from '../lib/mockData';
+import { getArticlesBySection } from '../../../lib/mockData';
 
 interface NotesPageProps {
   onReadArticle: (id: number) => void;

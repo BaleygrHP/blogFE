@@ -1,5 +1,5 @@
 import { ArticleList } from './ArticleList';
-import { getArticlesBySection } from '../lib/mockData';
+import { getArticlesBySection } from '../../../lib/mockData';
 
 interface EditorialPageProps {
   onReadArticle: (id: number) => void;
@@ -25,7 +25,7 @@ export function EditorialPage({ onReadArticle }: EditorialPageProps) {
         articles={articles}
         showExcerpt={true}
         showThumbnail={false}
-        columns={1}
+        columns={2}
         onReadArticle={onReadArticle}
       />
     </div>
