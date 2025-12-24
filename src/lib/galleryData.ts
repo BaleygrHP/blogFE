@@ -12,7 +12,7 @@ export interface GalleryImage {
 export const galleryImages: GalleryImage[] = [
   {
     id: 1,
-    url: 'https://res.cloudinary.com/dtav370xx/image/upload/v1766236106/photo-1506905925346-21bda4d32df4_h4farw.jpg',
+    url: 'https://res.cloudinary.com/dtav370xx/image/upload/v1766236106/newspaper/photo-1506905925346-21bda4d32df4_h4farw.jpg',
     caption: 'Mountain Morning',
     date: 'December 10, 2025',
     location: 'Swiss Alps',
