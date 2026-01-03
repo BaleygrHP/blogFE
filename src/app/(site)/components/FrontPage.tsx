@@ -1,64 +1,82 @@
-import { FeaturedArticle } from './FeaturedArticle';
-import { ArticleList } from './ArticleList';
-import { DiaryList } from './DiaryList';
-import {
-  getFeaturedArticle,
-  getLatestArticles,
-  getEditorialPicks,
-  getNotesArticles,
-  getDiaryEntries
-} from '../../../lib/mockData';
+// src/app/(site)/components/FrontPage.tsx
+"use client";
 
-interface FrontPageProps {
-  onReadArticle: (id: number) => void;
-}
+import { useEffect, useMemo, useState } from "react";
+import { getFrontPage } from "@/lib/apiClient";
+import type { FrontPageResponse } from "@/lib/types";
+import { mapPostToArticle } from "@/lib/adapters";
+// ✅ giữ nguyên các component UI của bạn
+import { FeaturedArticle } from "./FeaturedArticle";
+import { ArticleList } from "./ArticleList";
+import { DiaryList } from "./DiaryList";
 
-export function FrontPage({ onReadArticle }: FrontPageProps) {
-  const featured = getFeaturedArticle();
-  const latest = getLatestArticles(4);
-  const editorialPicks = getEditorialPicks(3);
-  const notes = getNotesArticles(3);
-  const diary = getDiaryEntries(5);
+const EMPTY: FrontPageResponse = {
+  featured: null,
+  latest: [],
+  editorial: [],
+  notes: [],
+  diary: [],
+};
+const noopRead = (_id: number) => {};
+
+export default function FrontPage() {
+  const [data, setData] = useState<FrontPageResponse>(EMPTY);
+
+  useEffect(() => {
+    getFrontPage()
+      .then((res) =>
+        setData({
+          featured: res.featured,
+          latest: res.latest ?? [],
+          editorial: res.editorial ?? [],
+          notes: res.notes ?? [],
+          diary: res.diary ?? [],
+        })
+      )
+      .catch(() => setData(EMPTY));
+  }, []);
+
+  const noopRead = (_id: number) => {};
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
       {/* Featured Article */}
-      {featured && (
-        <FeaturedArticle article={featured} onReadArticle={onReadArticle} />
+      {data.featured && (
+      <FeaturedArticle
+        article={mapPostToArticle(data.featured)}
+        onReadArticle={noopRead}
+      />
       )}
 
-      {/* Latest Stories */}
+
       <ArticleList
         title="Latest"
-        articles={latest}
-        showExcerpt={true}
-        columns={2}
-        onReadArticle={onReadArticle}
+        articles={data.latest.map(mapPostToArticle)}
+        onReadArticle={noopRead}
       />
 
-      {/* Editorial Picks */}
       <ArticleList
-        title="Editorial"
-        articles={editorialPicks}
-        showExcerpt={false}
-        columns={1}
-        onReadArticle={onReadArticle}
+        title="Editorial Picks"
+        articles={data.editorial.map(mapPostToArticle)}
+        onReadArticle={noopRead}
       />
 
-      {/* Notes */}
       <ArticleList
         title="Notes"
-        articles={notes}
-        showExcerpt={true}
-        showThumbnail={true}
-        columns={3}
-        onReadArticle={onReadArticle}
+        articles={data.notes.map(mapPostToArticle)}
+        onReadArticle={noopRead}
       />
-
-      {/* Diary */}
-      {diary.length > 0 && (
-        <DiaryList entries={diary} onReadEntry={onReadArticle} />
+      {data.diary.length > 0 && (
+        <DiaryList
+          entries={data.diary.map(mapPostToArticle)}
+          onReadEntry={noopRead}
+        />
       )}
+
+      <DiaryList
+        entries={data.diary.map(mapPostToArticle)}
+        onReadEntry={noopRead}
+      />
     </div>
   );
 }

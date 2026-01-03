@@ -1,11 +1,13 @@
+import Image from "next/image";
+
 interface Article {
   id: number;
   section: string;
   title: string;
-  excerpt: string;
+  subtitle: string;
   author: string;
   date: string;
-  coverImage?: string;
+  coverImage?: string | undefined;
 }
 
 interface FeaturedArticleProps {
@@ -37,7 +39,7 @@ export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps
 
         {/* Excerpt */}
         <p className="text-lg leading-relaxed text-muted-foreground mb-6">
-          {article.excerpt}
+          {article.subtitle}
         </p>
 
         {/* Read More */}
@@ -52,9 +54,11 @@ export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps
       {/* Optional Cover Image */}
       {article.coverImage && (
         <div className="mt-8">
-          <img
+          <Image
             src={article.coverImage}
             alt={article.title}
+            width={1200}
+            height={80}
             className="w-full max-w-4xl"
           />
         </div>

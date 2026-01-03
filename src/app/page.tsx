@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { Header } from './(site)/components/Header';
-import { FrontPage } from './(site)/components/FrontPage';
+import FrontPage from './(site)/components/FrontPage';
 import { EditorialPage } from './(site)/components/EditorialPage';
 import { NotesPage } from './(site)/components/NotesPage';
 import { DiaryPage } from './(site)/components/DiaryPage';

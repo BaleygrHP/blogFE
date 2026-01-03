@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 interface Article {
   id: number;
   section: string;
@@ -45,7 +47,7 @@ export function ArticleList({
             {/* Thumbnail (optional) */}
             {showThumbnail && article.thumbnail && (
               <div className="mb-4 overflow-hidden">
-                <img
+                <Image
                   src={article.thumbnail}
                   alt={article.title}
                   className="w-full h-48 object-cover group-hover:opacity-90 transition-opacity"
