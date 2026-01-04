@@ -1,18 +1,9 @@
+import { Article } from "@/lib/types";
 import Image from "next/image";
-
-interface Article {
-  id: number;
-  section: string;
-  title: string;
-  subtitle: string;
-  author: string;
-  date: string;
-  coverImage?: string | undefined;
-}
 
 interface FeaturedArticleProps {
   article: Article;
-  onReadArticle: (id: number) => void;
+  onReadArticle: (slug: string) => void;
 }
 
 export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps) {
@@ -26,7 +17,7 @@ export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps
 
         {/* Title */}
         <h2 
-          onClick={() => onReadArticle(article.id)}
+          onClick={() => onReadArticle(article.slug)}
           className="text-4xl md:text-5xl leading-tight mb-4 cursor-pointer hover:opacity-70 transition-opacity"
         >
           {article.title}
@@ -44,7 +35,7 @@ export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps
 
         {/* Read More */}
         <button
-          onClick={() => onReadArticle(article.id)}
+          onClick={() => onReadArticle(article.slug)}
           className="meta underline hover:text-foreground transition-colors"
         >
           Continue reading →
@@ -57,8 +48,8 @@ export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps
           <Image
             src={article.coverImage}
             alt={article.title}
-            width={1200}
-            height={80}
+            width={1920}
+            height={1080}
             className="w-full max-w-4xl"
           />
         </div>

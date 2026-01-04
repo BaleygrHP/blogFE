@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Edit3, LogOut, Save, Eye, ArrowLeft } from 'lucide-react';
-import { Article, getArticleById } from '../../../lib/mockData';
-import { getBlogCategoryNames } from '../../../lib/categoryData';
+import { Eye, ArrowLeft } from 'lucide-react';
+import { getBlogCategoryNames } from '@/lib/categoryData';
+import Image from 'next/image';
 
 interface Post {
   id: number;
@@ -29,7 +29,7 @@ export function PostEditor({ post, onSave, onCancel }: PostEditorProps) {
     post || {
       id: Date.now(),
       title: '',
-      section: getBlogCategoryNames()[0],
+      section: '',
       status: 'draft',
       author: 'Editorial Board',
       date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
@@ -212,7 +212,7 @@ Regular paragraph text.
               />
               {formData.coverImage && (
                 <div className="mt-3">
-                  <img 
+                  <Image 
                     src={formData.coverImage} 
                     alt="Cover preview" 
                     className="w-full border border-border"

@@ -55,7 +55,7 @@ export function Footer() {
         
         <div className="border-t border-neutral-700 pt-8 text-center text-sm text-neutral-400">
           <p>© 2025 The Daily Chronicle. All rights reserved.</p>
-          <p className="mt-2 italic">"All the News That Matters to Me"</p>
+          <p className="mt-2 italic">&quot;All the News That Matters to Me&quot;</p>
         </div>
       </div>
     </footer>

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Edit3, LogOut, Plus, Trash2, Edit2, X, Save } from 'lucide-react';
-import { galleryCategories, blogCategories, Category } from '../../../lib/categoryData';
 
 interface CategoryManagerProps {
   onNavigate: (page: string) => void;

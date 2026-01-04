@@ -1,33 +1,100 @@
 // src/lib/types.ts
 
-export type SectionKey = "EDITORIAL" | "NOTES" | "DIARY";
+export const SECTION = {
+  EDITORIAL: { key: "EDITORIAL", label: "Editorial" },
+  NOTES: { key: "NOTES", label: "Notes" },
+  DIARY: { key: "DIARY", label: "Diary" },
+} as const;
 
+export type SectionKey = typeof SECTION[keyof typeof SECTION]["key"];
+// ===== BACKEND MODELS =====
 export type PostListItem = {
-  // giữ field tối thiểu để UI không đổi
-  id?: string;         // optional nếu UI đang dùng id; backend có thể không cần
+  id: string;               
   slug: string;
   title: string;
   subtitle?: string | null;
-  excerpt?: string | null;
   section: SectionKey;
-  publishedAt?: string | null; // ISO string
-  coverImageUrl?: string | undefined;
+  publishedAt?: string | null;
+  coverImageUrl?: string | null;
 };
 
 export type FrontPageResponse = {
   featured: PostListItem | null;
   latest: PostListItem[];
-  editorial: PostListItem[]; // hoặc editorialPicks
-  notes: PostListItem[];
-  diary: PostListItem[];
+  curated: PostListItem[];
+  editorialBlock: PostListItem[];
+  notesBlock: PostListItem[];
+  diaryBlock: PostListItem[];
 };
 
+export type PostDto = {
+  id: string,
+  slug: string;
+  title: string;
+  subtitle?: string | null;
+  excerpt?: string;
+  section: "EDITORIAL" | "NOTES" | "DIARY";
+  publishedAt?: string | null;
+  coverImageUrl?: string | null;
+};
+
+export type PageResponse<T> = {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+};
+
+
+export type MediaKind = 'IMAGE' | 'VIDEO' | 'FILE';
+
+export type PublicMediaDto = {
+  id: string;
+  kind: MediaKind;
+  url: string;
+  width?: number | null;
+  height?: number | null;
+  alt?: string | null;
+  title?: string | null;
+  caption?: string | null;
+  location?: string | null;
+  takenAt?: string | null; // yyyy-MM-dd
+  createdDate?: string;
+  createdAt?: string;
+};
+
+
+
+
+export type DiaryEntry = Article
+
+// ===== UI MODELS =====
 export type Article = {
-  id: number;
+  id: string;
   section: string;
   title: string;
-  subtitle: string;
+  subtitle: string | null;
   author: string;
-  date: string;
+  date: string | null;
+  slug: string;
   coverImage?: string | undefined;
 }
+
+export type GalleryItem = {
+  id: string;
+  title: string;
+  slug: string;
+  imageUrl: string;
+  section: string;
+  date?: string;
+};
+
+export type GalleryImage = {
+  id: string;
+  url: string;
+  caption?: string;
+  category: string; // not supported by public API yet -> "All"
+  location?: string; // not supported -> empty
+  date: string; // map from createdDate/createdAt if available
+};

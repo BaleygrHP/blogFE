@@ -1,30 +1,83 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getAllGalleryImages, GalleryImage } from '../../../lib/galleryData';
-import { getGalleryCategoryNames } from '../../../lib/categoryData';
+import Image from 'next/image';
+import { GalleryImage, PublicMediaDto } from '@/lib/types';
+import { getPublicGallery } from "@/lib/apiClient";
 
 const IMAGES_PER_PAGE = 12;
 
+function toGalleryImage(m: PublicMediaDto): GalleryImage {
+  return {
+    id: m.id,
+    url: m.url,
+    caption: m.caption ?? m.title ?? m.alt ?? undefined,
+    location: m.location ?? undefined,
+    date: m.takenAt ?? m.createdDate ?? m.createdAt ?? "",
+    category: "All"
+  };
+}
+
+
 export function GalleryPage() {
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
+
+  // category vẫn giữ state để UI không vỡ, nhưng hiện public API chưa hỗ trợ category
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  // UI đang dùng 1-based; backend page là 0-based
   const [currentPage, setCurrentPage] = useState(1);
-  
-  const allImages = getAllGalleryImages();
-  const categories = getGalleryCategoryNames();
-  
-  // Filter by category
-  const filteredImages = selectedCategory === 'All' 
-    ? allImages 
-    : allImages.filter(img => img.category === selectedCategory);
-  
-  // Pagination
-  const totalPages = Math.ceil(filteredImages.length / IMAGES_PER_PAGE);
-  const startIndex = (currentPage - 1) * IMAGES_PER_PAGE;
-  const endIndex = startIndex + IMAGES_PER_PAGE;
-  const currentImages = filteredImages.slice(startIndex, endIndex);
-  
-  // Reset to page 1 when category changes
+
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const categories = useMemo(() => ['All'], []);
+
+  // fetch page when currentPage changes
+  useEffect(() => {
+  let cancelled = false;
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // currentPage (UI) là 1-based → API là 0-based
+      const data = await getPublicGallery(currentPage - 1, IMAGES_PER_PAGE, "IMAGE");
+
+      if (cancelled) return;
+
+      setImages(data.content.map(toGalleryImage));
+      setTotalPages(Math.max(1, data.totalPages));
+      setTotalElements(data.totalElements);
+    } catch (e: any) {
+      if (cancelled) return;
+
+      setError(e?.message ?? "Failed to load gallery");
+      setImages([]);
+      setTotalPages(1);
+      setTotalElements(0);
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+  }
+
+  load();
+  return () => {
+    cancelled = true;
+  };
+}, [currentPage]);
+
+
+  // Filter by category (currently only All)
+  const filteredImages = useMemo(() => {
+    return selectedCategory === 'All' ? images : images.filter((img) => img.category === selectedCategory);
+  }, [images, selectedCategory]);
+
+  // Reset to page 1 when category changes (kept)
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
     setCurrentPage(1);
@@ -33,16 +86,17 @@ export function GalleryPage() {
   // Navigate images in lightbox
   const navigateImage = (direction: 'prev' | 'next') => {
     if (!selectedImage) return;
-    
-    const currentIndex = filteredImages.findIndex(img => img.id === selectedImage.id);
-    let newIndex;
-    
+
+    const currentIndex = filteredImages.findIndex((img) => img.id === selectedImage.id);
+    if (currentIndex < 0) return;
+
+    let newIndex: number;
     if (direction === 'prev') {
       newIndex = currentIndex > 0 ? currentIndex - 1 : filteredImages.length - 1;
     } else {
       newIndex = currentIndex < filteredImages.length - 1 ? currentIndex + 1 : 0;
     }
-    
+
     setSelectedImage(filteredImages[newIndex]);
   };
 
@@ -75,26 +129,29 @@ export function GalleryPage() {
         </div>
       </div>
 
+      {/* Loading / Error */}
+      {loading && <div className="mb-6 meta text-muted-foreground">Loading...</div>}
+      {error && <div className="mb-6 meta text-red-500">{error}</div>}
+
       {/* Results Count */}
       <div className="mb-6 meta text-muted-foreground">
-        {filteredImages.length} {filteredImages.length === 1 ? 'image' : 'images'}
+        {totalElements} {totalElements === 1 ? 'image' : 'images'}
         {selectedCategory !== 'All' && ` in ${selectedCategory}`}
       </div>
 
       {/* Image Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-        {currentImages.map((image) => (
-          <div
-            key={image.id}
-            onClick={() => setSelectedImage(image)}
-            className="group cursor-pointer"
-          >
+        {filteredImages.map((image) => (
+          <div key={image.id} onClick={() => setSelectedImage(image)} className="group cursor-pointer">
             {/* Image */}
             <div className="overflow-hidden mb-3 bg-secondary">
-              <img
+              <Image
                 src={image.url}
                 alt={image.caption || 'Gallery image'}
+                width={1920}
+                height={1080}
                 className="w-full h-64 object-cover group-hover:opacity-90 transition-opacity"
+                loading="lazy"
               />
             </div>
 
@@ -117,11 +174,11 @@ export function GalleryPage() {
         ))}
       </div>
 
-      {/* Pagination */}
+      {/* Pagination (server-side) */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-4">
           <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className="px-4 py-2 border border-border hover:border-foreground disabled:opacity-30 disabled:hover:border-border transition-colors"
           >
@@ -145,7 +202,7 @@ export function GalleryPage() {
           </div>
 
           <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             className="px-4 py-2 border border-border hover:border-foreground disabled:opacity-30 disabled:hover:border-border transition-colors"
           >
@@ -193,9 +250,11 @@ export function GalleryPage() {
           <div className="max-w-6xl w-full">
             {/* Image */}
             <div className="mb-6">
-              <img
+              <Image
                 src={selectedImage.url}
                 alt={selectedImage.caption || 'Gallery image'}
+                width={1920}
+                height={1080}
                 className="w-full max-h-[70vh] object-contain"
                 onClick={(e) => e.stopPropagation()}
               />
@@ -203,9 +262,7 @@ export function GalleryPage() {
 
             {/* Info */}
             <div className="text-center" onClick={(e) => e.stopPropagation()}>
-              {selectedImage.caption && (
-                <h2 className="text-2xl mb-2">{selectedImage.caption}</h2>
-              )}
+              {selectedImage.caption && <h2 className="text-2xl mb-2">{selectedImage.caption}</h2>}
               <div className="meta text-muted-foreground">
                 <span className="inline-block px-2 py-1 border border-border mr-2">
                   {selectedImage.category}

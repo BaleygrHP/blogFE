@@ -1,24 +1,34 @@
+import { mapPostToArticle } from '@/lib/adapters';
+import { getPostBySlug } from '@/lib/apiClient';
+import { Article } from '@/lib/types';
 import { ArrowLeft } from 'lucide-react';
+import Image from 'next/image';
+import { useEffect, useState } from 'react';
 
-interface Article {
-  id: number;
-  section: string;
-  title: string;
-  excerpt: string;
-  author: string;
-  date: string;
-  coverImage?: string;
-  content?: string;
-}
 
 interface ArticlePageProps {
-  article: Article;
+  slug: string;
   onBack: () => void;
 }
 
-export function ArticlePage({ article, onBack }: ArticlePageProps) {
+export function ArticlePage({ slug , onBack }: ArticlePageProps) {
+  const [article, setArticle] = useState<Article | null>(null);
+
+  useEffect(() => {
+    getPostBySlug(slug)
+      .then((post) => setArticle(mapPostToArticle(post)))
+      .catch(() => setArticle(null));
+  }, [slug]);
+
+  if (!article) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        <p className="text-muted-foreground">Loading article…</p>
+      </div>
+    );
+  }
   // Mock full content for demo
-  const fullContent = article.content || `
+  const fullContent = `
     <p>This is the beginning of the article. In a full implementation, this would contain the complete Markdown-rendered content.</p>
     
     <p>The quiet UI philosophy emphasizes clarity and focus. Every element serves the reading experience. Nothing competes with the text for attention.</p>
@@ -93,7 +103,7 @@ export function ArticlePage({ article, onBack }: ArticlePageProps) {
           {/* Cover Image (optional) */}
           {article.coverImage && (
             <div className="mb-12 -mx-6 md:mx-0">
-              <img
+              <Image
                 src={article.coverImage}
                 alt={article.title}
                 className="w-full"

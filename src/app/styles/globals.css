@@ -176,6 +176,7 @@
     font-size: 0.9375rem;
     font-weight: 500;
     line-height: 1.5;
+    cursor: pointer
   }
 
   input, textarea {

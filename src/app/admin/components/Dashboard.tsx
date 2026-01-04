@@ -159,7 +159,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
                   onClick={() => onNavigate('gallery-manager')}
                 >
                   <div className="overflow-hidden mb-2 bg-secondary border border-border group-hover:border-foreground transition-colors">
-                    <img
+                    <Image
                       src={image.url}
                       alt={image.caption || 'Gallery image'}
                       className="w-full h-32 object-cover group-hover:opacity-90 transition-opacity"

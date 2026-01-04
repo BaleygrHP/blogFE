@@ -1,27 +1,29 @@
-// src/lib/adapters.ts
-import { PostListItem } from "./types";
+import { PostDto } from "./types";
 import { Article } from "./types";
 
+const SECTION_LABEL: Record<string, string> = {
+  EDITORIAL: "Editorial",
+  NOTES: "Notes",
+  DIARY: "Diary",
+};
 
-function hashStringToNumber(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
+export function mapPostToArticle(
+  post: PostDto,
+  options?: {
+    sectionLabel?: string;
+    showCover?: boolean;
   }
-  return Math.abs(hash);
-}
-
-export function mapPostToArticle(post: PostListItem): Article {
+): Article {
   return {
-    id: hashStringToNumber(post.slug),
-    section: post.section,
+    id: post.id,
+    slug: post.slug,
+    section: options?.sectionLabel ?? SECTION_LABEL[post.section] ?? post.section,
     title: post.title,
-    subtitle: post.subtitle ?? "",
+    subtitle: (post.subtitle ?? "").trim(),
     author: "Test",
     date: post.publishedAt
       ? new Date(post.publishedAt).toLocaleDateString("vi-VN")
       : "",
-    coverImage: post.coverImageUrl,
+    coverImage: options?.showCover ? post.coverImageUrl ?? undefined : undefined,
   };
 }
