@@ -6,14 +6,16 @@ import { ArticleList } from "./ArticleList";
 import { SECTION, type PageResponse, type PostDto } from "@/lib/types";
 import { getContentPosts } from "@/lib/apiClient";
 import { mapPostToArticle } from "@/lib/adapters";
+import { useRouter } from "next/navigation";
 
 
 
 interface EditorialPageProps {
-  onReadArticle: (slug: string) => void;
+  onReadArticle?: (slug: string) => void;
 }
 
 export function EditorialPage({ onReadArticle }: EditorialPageProps) {
+  const router = useRouter();
   const [items, setItems] = useState<PostDto[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -45,6 +47,11 @@ export function EditorialPage({ onReadArticle }: EditorialPageProps) {
   const editorialArticles = items.map((p) =>
     mapPostToArticle(p, { showCover: false })
   );
+
+  const handleRead = (slug: string) => {
+    if (onReadArticle) return onReadArticle(slug);
+    router.push(`/${slug}`);
+  };
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
       <PageHeader
@@ -58,7 +65,7 @@ export function EditorialPage({ onReadArticle }: EditorialPageProps) {
         showExcerpt={true}
         showThumbnail={false}
         columns={1}
-        onReadArticle={onReadArticle}
+        onReadArticle={handleRead}
       />
 
       {err ? <p className="text-sm text-muted-foreground mt-6">{err}</p> : null}

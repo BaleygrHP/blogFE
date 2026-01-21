@@ -7,6 +7,7 @@ import { mapPostToArticle } from "@/lib/adapters";
 import { FeaturedArticle } from "./FeaturedArticle";
 import { ArticleList } from "./ArticleList";
 import { DiaryList } from "./DiaryList";
+import { useRouter } from "next/navigation";
 
 const EMPTY: FrontPageResponse = {
   featured: null,
@@ -18,10 +19,11 @@ const EMPTY: FrontPageResponse = {
 };
 
 type FrontPageProps = {
-  onReadArticle: (slug: string) => void;
+  onReadArticle?: (slug: string) => void;
 };
 
 export function FrontPage({ onReadArticle }: FrontPageProps) {
+  const router = useRouter();
   const [data, setData] = useState<FrontPageResponse>(EMPTY);
 
   useEffect(() => {
@@ -62,11 +64,16 @@ export function FrontPage({ onReadArticle }: FrontPageProps) {
   const diaryArticles = data.diaryBlock.map((p) =>
     mapPostToArticle(p, { showCover: false })
   );
+
+  const handleRead = (slug: string) => {
+    if (onReadArticle) return onReadArticle(slug);
+    router.push(`/${slug}`);
+  };
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
       {/* Featured Article */}
       {featuredArticle && (
-        <FeaturedArticle article={featuredArticle} onReadArticle={onReadArticle} />
+        <FeaturedArticle article={featuredArticle} onReadArticle={handleRead} />
       )}
 
       {/* Latest */}
@@ -75,7 +82,7 @@ export function FrontPage({ onReadArticle }: FrontPageProps) {
         articles={latestArticles}
         showExcerpt={true}
         columns={2}
-        onReadArticle={onReadArticle}
+        onReadArticle={handleRead}
       />
 
       <ArticleList
@@ -83,7 +90,7 @@ export function FrontPage({ onReadArticle }: FrontPageProps) {
         articles={editorialArticles} // curate
         showExcerpt={false}
         columns={1}
-        onReadArticle={onReadArticle}
+        onReadArticle={handleRead}
       />
 
       {data.editorialBlock.length > 0 && (
@@ -92,7 +99,7 @@ export function FrontPage({ onReadArticle }: FrontPageProps) {
           articles={notesArticles}
           showExcerpt={true}
           columns={2}
-          onReadArticle={onReadArticle}
+          onReadArticle={handleRead}
         />
       )}
 
@@ -105,12 +112,12 @@ export function FrontPage({ onReadArticle }: FrontPageProps) {
         showExcerpt={true}
         showThumbnail={true}
         columns={3}
-        onReadArticle={onReadArticle}
+        onReadArticle={handleRead}
       />
 
       {/* Diary */}
       {data.diaryBlock.length > 0 && (
-        <DiaryList entries={diaryArticles} onReadEntry={onReadArticle} />
+        <DiaryList entries={diaryArticles} onReadEntry={handleRead} />
       )}
     </div>
   );

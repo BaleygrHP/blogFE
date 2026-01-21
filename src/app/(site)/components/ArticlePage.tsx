@@ -1,17 +1,22 @@
+"use client";
+
 import { mapPostToArticle } from '@/lib/adapters';
 import { getPostBySlug } from '@/lib/apiClient';
 import { Article } from '@/lib/types';
 import { ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 
 interface ArticlePageProps {
   slug: string;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 export function ArticlePage({ slug , onBack }: ArticlePageProps) {
+  const router = useRouter();
+  const handleBack = () => (onBack ? onBack() : router.back());
   const [article, setArticle] = useState<Article | null>(null);
 
   useEffect(() => {
@@ -72,7 +77,7 @@ export function ArticlePage({ slug , onBack }: ArticlePageProps) {
       <div className="border-b border-border">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <button
-            onClick={onBack}
+            onClick={handleBack}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

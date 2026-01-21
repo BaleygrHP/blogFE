@@ -1,10 +1,13 @@
+"use client";
+
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getArchivePosts } from "@/lib/apiClient";
 import { mapPostToArticle } from "@/lib/adapters";
 import { PageResponse, PostDto, SectionKey } from "@/lib/types";
 
 interface ArchivePageProps {
-  onReadArticle: (id: string) => void;
+  onReadArticle?: (slug: string) => void;
 }
 
 // map label UI -> sectionKey backend
@@ -29,6 +32,9 @@ function formatArchiveDate(iso?: string | null): string {
 }
 
 export function ArchivePage({ onReadArticle }: ArchivePageProps) {
+  const router = useRouter();
+  const handleRead = (slug: string) =>
+    onReadArticle ? onReadArticle(slug) : router.push(`/${slug}`);
   const [filterSection, setFilterSection] = useState<string>("All");
   const [filterYear, setFilterYear] = useState<string>("All");
   const [yearOffset, setYearOffset] = useState(0);
@@ -228,7 +234,7 @@ export function ArchivePage({ onReadArticle }: ArchivePageProps) {
 
                     {/* Title */}
                     <h3
-                      onClick={() => onReadArticle(article.id)}
+                      onClick={() => handleRead(article.slug)}
                       className="text-lg mb-1 cursor-pointer group-hover:opacity-70 transition-opacity"
                     >
                       {article.title}

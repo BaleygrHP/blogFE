@@ -1,77 +1,129 @@
-import { useState } from 'react';
+"use client";
+
+import { useEffect, useState } from 'react';
 import { Edit3, LogOut, Trash2, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { galleryImages, GalleryImage } from '../../../lib/galleryData';
-import { getGalleryCategoryNames } from '../../../lib/categoryData';
+import { useRouter } from 'next/navigation';
+import { getAdminMedia, uploadMedia, deleteMedia, type MediaUploadDto } from '@/lib/adminApiClient';
+import type { PublicMediaDto } from '@/lib/types';
 
 const IMAGES_PER_PAGE = 12;
 
 interface GalleryManagerProps {
-  onNavigate: (page: string) => void;
-  onLogout: () => void;
+  onNavigate?: (page: string) => void;
+  onLogout?: () => void;
 }
 
 export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
-  const [images, setImages] = useState(galleryImages);
+  const router = useRouter();
+  const nav = (page: string) =>
+    onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
+  const logout = () => (onLogout ? onLogout() : router.push('/'));
+  
+  const [images, setImages] = useState<PublicMediaDto[]>([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [newImage, setNewImage] = useState<Partial<GalleryImage>>({
+  const [currentPage, setCurrentPage] = useState(0); // 0-based for API
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [loading, setLoading] = useState(true);
+  
+  const [newImage, setNewImage] = useState<Partial<MediaUploadDto>>({
     url: '',
+    kind: 'IMAGE',
     caption: '',
     location: '',
-    category: 'Miscellaneous',
-    date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    title: '',
   });
 
-  // Filter by category
-  const filteredImages = selectedCategory === 'All' 
-    ? images 
-    : images.filter(img => img.category === selectedCategory);
-  
-  // Pagination
-  const totalPages = Math.ceil(filteredImages.length / IMAGES_PER_PAGE);
-  const startIndex = (currentPage - 1) * IMAGES_PER_PAGE;
-  const endIndex = startIndex + IMAGES_PER_PAGE;
-  const currentImages = filteredImages.slice(startIndex, endIndex);
-  
-  // Reset to page 1 when category changes
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category);
-    setCurrentPage(1);
-  };
+  // Fetch images when page changes
+  useEffect(() => {
+    async function loadImages() {
+      try {
+        setLoading(true);
+        const res = await getAdminMedia({
+          kind: "IMAGE",
+          page: currentPage,
+          size: IMAGES_PER_PAGE,
+        });
+        
+        setImages(res.content);
+        setTotalPages(res.totalPages);
+        setTotalElements(res.totalElements);
+      } catch (error) {
+        console.error("Failed to load images:", error);
+        setImages([]);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  const handleAddImage = () => {
+    loadImages();
+  }, [currentPage]);
+
+  const handleAddImage = async () => {
     if (!newImage.url) {
       alert('Please enter an image URL');
       return;
     }
 
-    const image: GalleryImage = {
-      id: Date.now(),
-      url: newImage.url!,
-      caption: newImage.caption,
-      location: newImage.location,
-      category: newImage.category!,
-      date: newImage.date!
-    };
+    try {
+      const mediaData: MediaUploadDto = {
+        url: newImage.url,
+        kind: 'IMAGE',
+        title: newImage.title,
+        caption: newImage.caption,
+        location: newImage.location,
+      };
 
-    setImages([image, ...images]);
-    setIsAdding(false);
-    setNewImage({
-      url: '',
-      caption: '',
-      location: '',
-      category: 'Miscellaneous',
-      date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    });
+      await uploadMedia(mediaData);
+      
+      // Refresh images list
+      const res = await getAdminMedia({
+        kind: "IMAGE",
+        page: currentPage,
+        size: IMAGES_PER_PAGE,
+      });
+      setImages(res.content);
+      setTotalElements(res.totalElements);
+      setTotalPages(res.totalPages);
 
-    alert('Image added! (Demo mode - changes are not persisted)');
+      setIsAdding(false);
+      setNewImage({
+        url: '',
+        kind: 'IMAGE',
+        caption: '',
+        location: '',
+        title: '',
+      });
+
+      alert('Image added successfully!');
+    } catch (error) {
+      console.error("Failed to add image:", error);
+      alert('Failed to add image. Please try again.');
+    }
   };
 
-  const handleDeleteImage = (id: number) => {
-    if (confirm('Delete this image?')) {
-      setImages(images.filter(img => img.id !== id));
-      alert('Image deleted! (Demo mode - changes are not persisted)');
+  const handleDeleteImage = async (id: string, caption?: string | null) => {
+    if (!confirm(`Delete "${caption || 'this image'}"?`)) {
+      return;
+    }
+
+    try {
+      await deleteMedia(id);
+      
+      // Refresh images list
+      const res = await getAdminMedia({
+        kind: "IMAGE",
+        page: currentPage,
+        size: IMAGES_PER_PAGE,
+      });
+      setImages(res.content);
+      setTotalElements(res.totalElements);
+      setTotalPages(res.totalPages);
+
+      alert('Image deleted successfully!');
+    } catch (error) {
+      console.error("Failed to delete image:", error);
+      alert('Failed to delete image. Please try again.');
     }
   };
 
@@ -82,7 +134,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <button
-              onClick={() => onNavigate('dashboard')}
+              onClick={() => nav('dashboard')}
               className="flex items-center gap-3 hover:opacity-70 transition-opacity"
             >
               <Edit3 className="w-5 h-5" />
@@ -92,7 +144,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
             <span className="meta">Gallery</span>
           </div>
           <button
-            onClick={onLogout}
+            onClick={logout}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
           >
             <LogOut className="w-4 h-4" />
@@ -165,20 +217,6 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
                 />
               </div>
 
-              {/* Category */}
-              <div>
-                <label className="block mb-2 text-sm font-medium">Category</label>
-                <select
-                  value={newImage.category}
-                  onChange={(e) => setNewImage({ ...newImage, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
-                >
-                  {getGalleryCategoryNames().map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-
               {/* Preview */}
               {newImage.url && (
                 <div>
@@ -210,29 +248,23 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
           </div>
         )}
 
-        {/* Category Filter */}
-        <div className="mb-6">
-          <label className="block mb-2 text-sm font-medium">Filter by Category</label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => handleCategoryChange(e.target.value)}
-            className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
-          >
-            <option value="All">All</option>
-            {getGalleryCategoryNames().map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-        </div>
-
         {/* Images Count */}
         <div className="mb-6 meta text-muted-foreground">
-          {filteredImages.length} {filteredImages.length === 1 ? 'image' : 'images'}
+          {loading ? "Loading..." : `${totalElements} ${totalElements === 1 ? 'image' : 'images'}`}
         </div>
 
         {/* Images Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {currentImages.map((image) => (
+          {loading ? (
+            <div className="col-span-3 text-center py-12 text-muted-foreground">
+              Loading images...
+            </div>
+          ) : images.length === 0 ? (
+            <div className="col-span-3 text-center py-12 text-muted-foreground">
+              No images found.
+            </div>
+          ) : (
+            images.map((image) => (
             <div key={image.id} className="bg-card border border-border overflow-hidden group">
               {/* Image */}
               <div className="relative">
@@ -258,29 +290,30 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
                 )}
                 <div className="meta text-muted-foreground text-sm">
                   {image.location && <div>{image.location}</div>}
-                  <div>{image.date}</div>
+                  <div>{image.takenAt || image.createdDate || ""}</div>
                 </div>
               </div>
             </div>
-          ))}
+              ))
+          )}
         </div>
 
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-center mt-8">
             <button
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+              disabled={currentPage === 0 || loading}
               className="px-4 py-2 bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <span className="mx-4 meta text-muted-foreground">
-              Page {currentPage} of {totalPages}
+              Page {currentPage + 1} of {totalPages}
             </span>
             <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+              disabled={currentPage >= totalPages - 1 || loading}
               className="px-4 py-2 bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               <ChevronRight className="w-5 h-5" />

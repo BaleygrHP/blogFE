@@ -1,18 +1,61 @@
+"use client";
+
+import { useEffect, useState } from 'react';
 import { FileText, FilePlus, LogOut, Edit3, Image, Tag } from 'lucide-react';
-import { getAllPublishedArticles, getAllDrafts } from '../../../lib/mockData';
-import { getAllGalleryImages } from '../../../lib/galleryData';
+import { useRouter } from 'next/navigation';
+import { getAdminPosts, getAdminMedia, type AdminPostDto } from '@/lib/adminApiClient';
+import type { PublicMediaDto } from '@/lib/types';
 
 interface DashboardProps {
-  onNavigate: (page: string) => void;
-  onLogout: () => void;
+  onNavigate?: (page: string) => void;
+  onLogout?: () => void;
 }
 
 export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
-  const published = getAllPublishedArticles();
-  const drafts = getAllDrafts();
-  const recentDrafts = drafts.slice(0, 5);
-  const galleryImages = getAllGalleryImages();
-  const recentImages = galleryImages.slice(0, 6);
+  const router = useRouter();
+  const nav = (page: string) =>
+    onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
+  const logout = () => (onLogout ? onLogout() : router.push("/"));
+
+  const [publishedCount, setPublishedCount] = useState(0);
+  const [draftsCount, setDraftsCount] = useState(0);
+  const [recentDrafts, setRecentDrafts] = useState<AdminPostDto[]>([]);
+  const [galleryCount, setGalleryCount] = useState(0);
+  const [recentImages, setRecentImages] = useState<PublicMediaDto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      try {
+        setLoading(true);
+        
+        // Fetch published count
+        const publishedRes = await getAdminPosts({ status: "published", page: 0, size: 1 });
+        setPublishedCount(publishedRes.totalElements);
+
+        // Fetch drafts count and recent drafts
+        const draftsRes = await getAdminPosts({ status: "draft", page: 0, size: 5 });
+        setDraftsCount(draftsRes.totalElements);
+        setRecentDrafts(draftsRes.content.slice(0, 5));
+
+        // Fetch gallery count and recent images
+        try {
+          const galleryRes = await getAdminMedia({ kind: "IMAGE", page: 0, size: 6 });
+          setGalleryCount(galleryRes.totalElements);
+          setRecentImages(galleryRes.content.slice(0, 6));
+        } catch (err) {
+          // Gallery API might not be available yet
+          console.warn("Gallery API not available:", err);
+        }
+      } catch (error) {
+        console.error("Failed to load dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboardData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -24,7 +67,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
             <span className="font-medium">Admin</span>
           </div>
           <button
-            onClick={onLogout}
+            onClick={logout}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
           >
             <LogOut className="w-4 h-4" />
@@ -45,7 +88,9 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
               <span className="section-label text-muted-foreground">Published</span>
               <FileText className="w-5 h-5 text-muted-foreground" />
             </div>
-            <div className="text-3xl font-medium">{published.length}</div>
+            <div className="text-3xl font-medium">
+              {loading ? "..." : publishedCount}
+            </div>
           </div>
 
           {/* Drafts Count */}
@@ -54,12 +99,14 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
               <span className="section-label text-muted-foreground">Drafts</span>
               <FileText className="w-5 h-5 text-muted-foreground" />
             </div>
-            <div className="text-3xl font-medium">{drafts.length}</div>
+            <div className="text-3xl font-medium">
+              {loading ? "..." : draftsCount}
+            </div>
           </div>
 
           {/* Quick Action */}
           <button
-            onClick={() => onNavigate('new-post')}
+            onClick={() => nav('posts/new')}
             className="bg-foreground text-background border border-foreground p-6 hover:opacity-90 transition-opacity text-left"
           >
             <div className="flex items-center justify-between mb-2">
@@ -75,25 +122,25 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
           <h2 className="text-xl mb-6 pb-3 border-b border-border">Quick Actions</h2>
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => onNavigate('posts')}
+              onClick={() => nav('posts')}
               className="px-6 py-3 border border-border hover:border-foreground transition-colors"
             >
               View All Posts
             </button>
             <button
-              onClick={() => onNavigate('new-post')}
+            onClick={() => nav('posts/new')}
               className="px-6 py-3 bg-foreground text-background hover:opacity-90 transition-opacity"
             >
               New Post
             </button>
             <button
-              onClick={() => onNavigate('gallery-manager')}
+              onClick={() => nav('gallery')}
               className="px-6 py-3 border border-border hover:border-foreground transition-colors"
             >
               Manage Gallery
             </button>
             <button
-              onClick={() => onNavigate('category-manager')}
+              onClick={() => nav('categories')}
               className="flex items-center gap-2 px-6 py-3 border border-border hover:border-foreground transition-colors"
             >
               <Tag className="w-4 h-4" />
@@ -111,7 +158,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
                 <div
                   key={draft.id}
                   className="flex items-center justify-between p-4 bg-card border border-border hover:border-foreground transition-colors cursor-pointer"
-                  onClick={() => onNavigate(`edit-post-${draft.id}`)}
+                  onClick={() => nav(`posts/${draft.id}`)}
                 >
                   <div>
                     <div className="section-label text-muted-foreground text-xs mb-1">
@@ -120,7 +167,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
                     <div className="font-medium">{draft.title}</div>
                   </div>
                   <div className="meta text-muted-foreground">
-                    {draft.date}
+                    {draft.publishedAt || "No date"}
                   </div>
                 </div>
               ))}
@@ -134,10 +181,10 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
             <div className="flex items-center justify-between mb-6 pb-3 border-b border-border">
               <h2 className="text-xl">Gallery Overview</h2>
               <button
-                onClick={() => onNavigate('gallery-manager')}
+                onClick={() => nav('gallery')}
                 className="meta text-muted-foreground hover:text-foreground transition-colors underline"
               >
-                View All ({galleryImages.length})
+                View All ({loading ? "..." : galleryCount})
               </button>
             </div>
             
@@ -147,7 +194,9 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
                 <span className="section-label text-muted-foreground">Total Images</span>
                 <Image className="w-5 h-5 text-muted-foreground" />
               </div>
-              <div className="text-3xl font-medium">{galleryImages.length}</div>
+              <div className="text-3xl font-medium">
+                {loading ? "..." : galleryCount}
+              </div>
             </div>
 
             {/* Recent Images Grid */}
@@ -156,20 +205,22 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
                 <div
                   key={image.id}
                   className="group cursor-pointer"
-                  onClick={() => onNavigate('gallery-manager')}
+                  onClick={() => nav('gallery')}
                 >
                   <div className="overflow-hidden mb-2 bg-secondary border border-border group-hover:border-foreground transition-colors">
-                    <Image
+                    <img
                       src={image.url}
-                      alt={image.caption || 'Gallery image'}
+                      alt={image.caption || image.title || 'Gallery image'}
                       className="w-full h-32 object-cover group-hover:opacity-90 transition-opacity"
                     />
                   </div>
-                  {image.caption && (
-                    <div className="text-sm font-medium truncate">{image.caption}</div>
+                  {(image.caption || image.title) && (
+                    <div className="text-sm font-medium truncate">
+                      {image.caption || image.title}
+                    </div>
                   )}
                   <div className="meta text-muted-foreground text-xs">
-                    {image.category}
+                    {image.takenAt || image.createdDate || ""}
                   </div>
                 </div>
               ))}

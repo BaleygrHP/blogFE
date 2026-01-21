@@ -1,48 +1,45 @@
-import { Article } from "@/lib/types";
+"use client";
+
+import type { Article } from "@/lib/types";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 interface FeaturedArticleProps {
   article: Article;
-  onReadArticle: (slug: string) => void;
+  onReadArticle?: (slug: string) => void;
 }
 
 export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps) {
+  const router = useRouter();
+  const handleRead = (slug: string) =>
+    onReadArticle ? onReadArticle(slug) : router.push(`/${slug}`);
+
   return (
     <article className="border-b border-border pb-12 mb-12">
       <div className="max-w-3xl">
-        {/* Section Label */}
-        <div className="section-label text-muted-foreground mb-3">
-          {article.section}
-        </div>
+        <div className="section-label text-muted-foreground mb-3">{article.section}</div>
 
-        {/* Title */}
-        <h2 
-          onClick={() => onReadArticle(article.slug)}
+        <h2
+          onClick={() => handleRead(article.slug)}
           className="text-4xl md:text-5xl leading-tight mb-4 cursor-pointer hover:opacity-70 transition-opacity"
         >
           {article.title}
         </h2>
 
-        {/* Meta */}
-        <div className="meta mb-6">
-          By {article.author} · {article.date}
-        </div>
+        <div className="meta mb-6">By {article.author} · {article.date}</div>
 
-        {/* Excerpt */}
-        <p className="text-lg leading-relaxed text-muted-foreground mb-6">
-          {article.subtitle}
-        </p>
+        {article.subtitle ? (
+          <p className="text-lg leading-relaxed text-muted-foreground mb-6">{article.subtitle}</p>
+        ) : null}
 
-        {/* Read More */}
         <button
-          onClick={() => onReadArticle(article.slug)}
+          onClick={() => handleRead(article.slug)}
           className="meta underline hover:text-foreground transition-colors"
         >
           Continue reading →
         </button>
       </div>
 
-      {/* Optional Cover Image */}
       {article.coverImage && (
         <div className="mt-8">
           <Image

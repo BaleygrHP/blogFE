@@ -1,11 +1,15 @@
+"use client";
+
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin?: () => void;
 }
 
 export function Login({ onLogin }: LoginProps) {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,10 +20,10 @@ export function Login({ onLogin }: LoginProps) {
 
     // Simple auth check
     if (email === 'admin@dailychronicle.com' && password === 'admin123') {
-      onLogin();
+      onLogin ? onLogin() : router.push('/admin/dashboard');
     } else {
       // setError('Invalid credentials');
-      onLogin();
+      onLogin ? onLogin() : router.push('/admin/dashboard');
     }
   };
 

@@ -1,12 +1,19 @@
+"use client";
+
 import { useState } from 'react';
 import { Edit3, LogOut, Plus, Trash2, Edit2, X, Save } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface CategoryManagerProps {
-  onNavigate: (page: string) => void;
-  onLogout: () => void;
+  onNavigate?: (page: string) => void;
+  onLogout?: () => void;
 }
 
 export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) {
+  const router = useRouter();
+  const nav = (page: string) =>
+    onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
+  const logout = () => (onLogout ? onLogout() : router.push('/'));
   const [activeTab, setActiveTab] = useState<'gallery' | 'blog'>('gallery');
   const [galleryCats, setGalleryCats] = useState(galleryCategories);
   const [blogCats, setBlogCats] = useState(blogCategories);
@@ -92,7 +99,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <button
-              onClick={() => onNavigate('dashboard')}
+              onClick={() => nav('dashboard')}
               className="flex items-center gap-3 hover:opacity-70 transition-opacity"
             >
               <Edit3 className="w-5 h-5" />
@@ -102,7 +109,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
             <span className="meta">Categories</span>
           </div>
           <button
-            onClick={onLogout}
+            onClick={logout}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
           >
             <LogOut className="w-4 h-4" />

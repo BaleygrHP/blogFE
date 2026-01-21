@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "./PageHeader";
 import { ArticleList } from "./ArticleList";
 import { getContentPosts } from "@/lib/apiClient";
@@ -10,10 +11,11 @@ import { mapPostToArticle } from "@/lib/adapters";
 
 
 interface NotesPageProps {
-  onReadArticle: (slug: string) => void;
+  onReadArticle?: (slug: string) => void;
 }
 
 export function NotesPage({ onReadArticle }: NotesPageProps) {
+  const router = useRouter();
   const [items, setItems] = useState<PostDto[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -61,7 +63,7 @@ export function NotesPage({ onReadArticle }: NotesPageProps) {
         showExcerpt
         showThumbnail
         columns={2}
-        onReadArticle={onReadArticle}
+        onReadArticle={(slug) => (onReadArticle ? onReadArticle(slug) : router.push(`/${slug}`))}
       />
 
       <div className="mt-8">

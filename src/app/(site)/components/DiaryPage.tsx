@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "./PageHeader";
 import { getContentPosts } from "@/lib/apiClient";
 import { mapPostToArticle } from "@/lib/adapters";
@@ -8,10 +9,13 @@ import { PageResponse, PostDto } from "@/lib/types";
 
 
 interface DiaryPageProps {
-  onReadArticle: (slug: string) => void; // ✅ đổi sang string
+  onReadArticle?: (slug: string) => void; // ✅ optional (URL routing)
 }
 
 export function DiaryPage({ onReadArticle }: DiaryPageProps) {
+  const router = useRouter();
+  const handleRead = (slug: string) =>
+    onReadArticle ? onReadArticle(slug) : router.push(`/${slug}`);
   const [items, setItems] = useState<PostDto[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -60,7 +64,7 @@ export function DiaryPage({ onReadArticle }: DiaryPageProps) {
 
             {/* Title */}
             <h3
-              onClick={() => onReadArticle(entry.slug)}
+              onClick={() => handleRead(entry.slug)}
               className="text-xl mb-3 cursor-pointer hover:opacity-70 transition-opacity"
             >
               {entry.title}
@@ -75,7 +79,7 @@ export function DiaryPage({ onReadArticle }: DiaryPageProps) {
 
             {/* Read link */}
             <button
-              onClick={() => onReadArticle(entry.slug)}
+              onClick={() => handleRead(entry.slug)}
               className="meta underline hover:text-foreground transition-colors"
             >
               Read entry →
