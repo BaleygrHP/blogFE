@@ -12,7 +12,7 @@ if (!BE_BASE_URL) {
   console.warn('[api-proxy] Missing BE_BASE_URL (or NEXT_PUBLIC_BE_BASE_URL) env var');
 }
 
-function pickHeaders(req: NextRequest): Headers {
+async function pickHeaders(req: NextRequest): Promise<Headers> {
   const h = new Headers();
 
   // Forward content-type/accept for JSON APIs
@@ -22,7 +22,7 @@ function pickHeaders(req: NextRequest): Headers {
   if (accept) h.set('accept', accept);
 
   // Actor header: prefer cookie (set by /api/auth/login), fallback to incoming header
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const actorFromCookie = cookieStore.get('actorUserId')?.value;
   const actorFromHeader = req.headers.get('x-actor-userid') || req.headers.get('X-Actor-UserId');
   const actor = actorFromCookie || actorFromHeader;
@@ -49,7 +49,7 @@ export async function proxyToBE(req: NextRequest, bePath: string): Promise<NextR
 
   const upstream = await fetch(target, {
     method,
-    headers: pickHeaders(req),
+    headers: await pickHeaders(req),
     body,
     // Avoid Next.js caching for API proxy
     cache: 'no-store',

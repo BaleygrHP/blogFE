@@ -14,16 +14,26 @@ export function Login({ onLogin }: LoginProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Simple auth check
-    if (email === 'admin@dailychronicle.com' && password === 'admin123') {
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Login failed");
+      }
+
+      // Success
       onLogin ? onLogin() : router.push('/admin/dashboard');
-    } else {
-      // setError('Invalid credentials');
-      onLogin ? onLogin() : router.push('/admin/dashboard');
+    } catch (err) {
+      console.error(err);
+      setError('Invalid credentials');
     }
   };
 

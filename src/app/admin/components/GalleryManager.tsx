@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Edit3, LogOut, Trash2, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { getAdminMedia, uploadMedia, deleteMedia, type MediaUploadDto } from '@/lib/adminApiClient';
+import { getAdminMedia, uploadMedia, updateMedia, deleteMedia, getMediaCategories, type MediaUploadDto, type MediaUpdateDto } from '@/lib/adminApiClient';
 import type { PublicMediaDto } from '@/lib/types';
 
 const IMAGES_PER_PAGE = 12;
@@ -18,9 +18,10 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
   const nav = (page: string) =>
     onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
   const logout = () => (onLogout ? onLogout() : router.push('/'));
-  
+  const [categories, setCategories] = useState<string[]>([]); // Add state for categories
   const [images, setImages] = useState<PublicMediaDto[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0); // 0-based for API
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
@@ -33,6 +34,8 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
     location: '',
     title: '',
   });
+
+  const [editData, setEditData] = useState<MediaUpdateDto>({});
 
   // Fetch images when page changes
   useEffect(() => {
@@ -127,6 +130,46 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
     }
   };
 
+  const handleEditImage = (image: PublicMediaDto) => {
+    setEditingId(image.id);
+    setEditData({
+      title: image.title || '',
+      alt: image.alt || '',
+      caption: image.caption || '',
+      location: image.location || '',
+      category: image.category || '',
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+
+    try {
+      await updateMedia(editingId, editData);
+      
+      // Refresh images list
+      const res = await getAdminMedia({
+        kind: "IMAGE",
+        page: currentPage,
+        size: IMAGES_PER_PAGE,
+      });
+      setImages(res.content);
+      setTotalElements(res.totalElements);
+      setTotalPages(res.totalPages);
+
+      setEditingId(null);
+      setEditData({});
+      alert('Image updated successfully!');
+    } catch (error) {
+      console.error("Failed to update image:", error);
+      alert('Failed to update image. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    getMediaCategories().then(setCategories).catch(err => console.error("Failed to load categories", err));
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Admin Header */}
@@ -210,11 +253,26 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
                 <label className="block mb-2 text-sm font-medium">Location</label>
                 <input
                   type="text"
-                  value={newImage.location}
+                  value={newImage.location || ''}
                   onChange={(e) => setNewImage({ ...newImage, location: e.target.value })}
                   className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
                   placeholder="Swiss Alps"
                 />
+              </div>
+
+              {/* Category */}
+              <div>
+                 <label className="block mb-2 text-sm font-medium">Category</label>
+                 <div className="flex gap-2">
+                   <select 
+                     className="w-full px-4 py-3 border border-input bg-background"
+                     value={newImage.category || ''}
+                     onChange={(e) => setNewImage({...newImage, category: e.target.value})}
+                   >
+                     <option value="">Select category...</option>
+                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                   </select> 
+                 </div>
               </div>
 
               {/* Preview */}
@@ -274,25 +332,82 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
                   className="w-full h-48 object-cover"
                 />
                 
-                {/* Delete Button (hover) */}
-                <button
-                  onClick={() => handleDeleteImage(image.id)}
-                  className="absolute top-3 right-3 w-10 h-10 bg-background/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Info */}
-              <div className="p-4">
-                {image.caption && (
-                  <h3 className="font-medium mb-1">{image.caption}</h3>
-                )}
-                <div className="meta text-muted-foreground text-sm">
-                  {image.location && <div>{image.location}</div>}
-                  <div>{image.takenAt || image.createdDate || ""}</div>
+                {/* Action Buttons (hover) */}
+                <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleEditImage(image)}
+                    className="w-10 h-10 bg-background/90 flex items-center justify-center hover:bg-foreground hover:text-background transition-colors"
+                  >
+                    <Edit3 className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteImage(image.id)}
+                    className="w-10 h-10 bg-background/90 flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
+
+              {/* Info / Edit Form */}
+              {editingId === image.id ? (
+                <div className="p-4 space-y-3 bg-muted">
+                  <div>
+                    <label className="block mb-1 text-xs font-medium">Caption</label>
+                    <input
+                      type="text"
+                      value={editData.caption || ''}
+                      onChange={(e) => setEditData({ ...editData, caption: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-input bg-background"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 text-xs font-medium">Location</label>
+                    <input
+                      type="text"
+                      value={editData.location || ''}
+                      onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-input bg-background"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 text-xs font-medium">Category</label>
+                    <select
+                      value={editData.category || ''}
+                      onChange={(e) => setEditData({ ...editData, category: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-input bg-background"
+                    >
+                      <option value="">Select category...</option>
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={handleSaveEdit}
+                      className="flex-1 px-4 py-2 text-sm bg-foreground text-background hover:opacity-90"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => { setEditingId(null); setEditData({}); }}
+                      className="flex-1 px-4 py-2 text-sm border border-border hover:border-foreground"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4">
+                  {image.caption && (
+                    <h3 className="font-medium mb-1">{image.caption}</h3>
+                  )}
+                  <div className="meta text-muted-foreground text-sm">
+                    {image.location && <div>{image.location}</div>}
+                    {image.category && <div className="text-xs">Category: {image.category}</div>}
+                    <div>{image.takenAt || image.createdDate || ""}</div>
+                  </div>
+                </div>
+              )}
             </div>
               ))
           )}

@@ -4,13 +4,15 @@ import { PostsList } from "@/app/admin/components/PostsList";
 import { PostEditor } from "@/app/admin/components/PostEditor";
 import { GalleryManager } from "@/app/admin/components/GalleryManager";
 import { CategoryManager } from "@/app/admin/components/CategoryManager";
+import { FrontPageManager } from "@/app/admin/components/FrontPageManager";
 
 type Props = {
-  params: { path?: string[] };
+  params: Promise<{ path?: string[] }>;
 };
 
-export default function AdminCatchAllPage({ params }: Props) {
-  const path = params.path ?? [];
+export default async function AdminCatchAllPage({ params }: Props) {
+  const resolvedParams = await params;
+  const path = resolvedParams?.path ?? [];
   const [seg1, seg2] = path;
 
   // /admin/login
@@ -37,6 +39,9 @@ export default function AdminCatchAllPage({ params }: Props) {
 
   // /admin/categories
   if (seg1 === "categories") return <CategoryManager />;
+
+  // /admin/front-page
+  if (seg1 === "front-page") return <FrontPageManager />;
 
   return <div style={{ padding: 24 }}>Admin page not found.</div>;
 }

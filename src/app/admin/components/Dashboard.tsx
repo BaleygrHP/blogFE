@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { FileText, FilePlus, LogOut, Edit3, Image, Tag } from 'lucide-react';
+import { FileText, FilePlus, LogOut, Edit3, Image, Tag, Layout } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getAdminPosts, getAdminMedia, type AdminPostDto } from '@/lib/adminApiClient';
 import type { PublicMediaDto } from '@/lib/types';
@@ -47,8 +47,11 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
           // Gallery API might not be available yet
           console.warn("Gallery API not available:", err);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to load dashboard data:", error);
+        if (error.message?.includes("401")) {
+          router.push("/admin"); // Redirect to login
+        }
       } finally {
         setLoading(false);
       }
@@ -145,6 +148,13 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
             >
               <Tag className="w-4 h-4" />
               Manage Categories
+            </button>
+            <button
+              onClick={() => nav('front-page')}
+              className="flex items-center gap-2 px-6 py-3 border border-border hover:border-foreground transition-colors"
+            >
+              <Layout className="w-4 h-4" />
+              Front Page
             </button>
           </div>
         </div>

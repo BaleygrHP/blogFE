@@ -57,7 +57,7 @@ export async function getAdminPosts(params?: {
 }): Promise<PageResponse<AdminPostDto>> {
     const query = new URLSearchParams();
     if (params?.section) query.append("section", params.section);
-    if (params?.status) query.append("status", params.status);
+    if (params?.status) query.append("status", params.status.toUpperCase());
     if (params?.page !== undefined) query.append("page", String(params.page));
     if (params?.size !== undefined) query.append("size", String(params.size));
 
@@ -119,9 +119,23 @@ export async function getAdminSections(): Promise<SectionDto[]> {
     return fetchJson<SectionDto[]>(`${API_BASE}/sections`);
 }
 
+export async function createSection(data: { name: string; description?: string }): Promise<SectionDto> {
+    return fetchJson<SectionDto>(`${API_BASE}/sections`, {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+}
+
+export async function updateSection(id: string, data: { name: string; description?: string }): Promise<SectionDto> {
+    return fetchJson<SectionDto>(`${API_BASE}/sections/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+    });
+}
+
 export async function toggleSection(sectionId: string): Promise<SectionDto> {
     return fetchJson<SectionDto>(`${API_BASE}/sections/${sectionId}/toggle`, {
-        method: "POST",
+        method: "PATCH", // Controller uses PatchMapping
     });
 }
 
@@ -135,6 +149,7 @@ export interface MediaUploadDto {
     caption?: string;
     location?: string;
     takenAt?: string; // yyyy-MM-dd
+    category?: string;
     width?: number;
     height?: number;
 }
@@ -154,11 +169,34 @@ export async function getAdminMedia(params?: {
     );
 }
 
+export async function getMediaCategories(): Promise<string[]> {
+    return fetchJson<string[]>(`${API_BASE}/media/categories`);
+}
+
 export async function uploadMedia(
     data: MediaUploadDto
 ): Promise<PublicMediaDto> {
-    return fetchJson<PublicMediaDto>(`${API_BASE}/media`, {
+    return fetchJson<PublicMediaDto>(`${API_BASE}/media/url`, {
         method: "POST",
+        body: JSON.stringify(data),
+    });
+}
+
+export interface MediaUpdateDto {
+    title?: string;
+    alt?: string;
+    caption?: string;
+    location?: string;
+    takenAt?: string; // yyyy-MM-dd
+    category?: string;
+}
+
+export async function updateMedia(
+    mediaId: string,
+    data: MediaUpdateDto
+): Promise<PublicMediaDto> {
+    return fetchJson<PublicMediaDto>(`${API_BASE}/media/${mediaId}`, {
+        method: "PATCH",
         body: JSON.stringify(data),
     });
 }
@@ -179,20 +217,30 @@ export interface FrontPageItemDto {
     section: "featured" | "curated";
 }
 
+export interface UpsertCuratedRequest {
+    postId: string;
+    position: number;
+    active: boolean;
+    startAt?: string; // ISO
+    endAt?: string;   // ISO
+    note?: string;
+}
+
 export async function getFrontPageItems(): Promise<FrontPageItemDto[]> {
     return fetchJson<FrontPageItemDto[]>(`${API_BASE}/front-page/items`);
 }
 
-export async function setFeaturedPost(postId: string): Promise<void> {
-    await fetchJson(`${API_BASE}/front-page/featured`, {
+// Changed to use query param as per AdminPostController
+export async function setFeaturedPost(postId: string): Promise<FrontPageItemDto> {
+    return fetchJson<FrontPageItemDto>(`${API_BASE}/front-page/featured?postId=${postId}`, {
         method: "POST",
-        body: JSON.stringify({ postId }),
     });
 }
 
-export async function addCuratedPost(postId: string): Promise<void> {
-    await fetchJson(`${API_BASE}/front-page/curated`, {
+// Changed to send full object
+export async function addCuratedPost(request: UpsertCuratedRequest): Promise<FrontPageItemDto> {
+    return fetchJson<FrontPageItemDto>(`${API_BASE}/front-page/curated`, {
         method: "POST",
-        body: JSON.stringify({ postId }),
+        body: JSON.stringify(request),
     });
 }

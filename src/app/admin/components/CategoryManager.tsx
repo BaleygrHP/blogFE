@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from 'react';
-import { Edit3, LogOut, Plus, Trash2, Edit2, X, Save } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Edit3, LogOut, Plus, Edit2, Save, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { 
+  getAdminSections, 
+  createSection, 
+  updateSection, 
+  toggleSection,
+  type SectionDto
+} from '@/lib/adminApiClient';
 
 interface CategoryManagerProps {
   onNavigate?: (page: string) => void;
@@ -14,75 +21,87 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
   const nav = (page: string) =>
     onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
   const logout = () => (onLogout ? onLogout() : router.push('/'));
-  const [activeTab, setActiveTab] = useState<'gallery' | 'blog'>('gallery');
-  const [galleryCats, setGalleryCats] = useState(galleryCategories);
-  const [blogCats, setBlogCats] = useState(blogCategories);
+
+  const [sections, setSections] = useState<SectionDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     name: '',
     description: ''
   });
 
-  const currentCategories = activeTab === 'gallery' ? galleryCats : blogCats;
-  const setCurrentCategories = activeTab === 'gallery' ? setGalleryCats : setBlogCats;
+  useEffect(() => {
+    loadSections();
+  }, []);
 
-  const handleAdd = () => {
+  async function loadSections() {
+    try {
+      setLoading(true);
+      const data = await getAdminSections();
+      setSections(data);
+    } catch (error) {
+      console.error("Failed to load sections:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleAdd = async () => {
     if (!formData.name.trim()) {
-      alert('Please enter a category name');
+      alert('Please enter a section name');
       return;
     }
 
-    const newCategory: Category = {
-      id: Date.now(),
-      name: formData.name,
-      slug: formData.name.toLowerCase().replace(/\s+/g, '-'),
-      description: formData.description,
-      type: activeTab
-    };
-
-    setCurrentCategories([...currentCategories, newCategory]);
-    setFormData({ name: '', description: '' });
-    setIsAdding(false);
-    alert('Category added! (Demo mode - changes are not persisted)');
+    try {
+      await createSection({
+        name: formData.name,
+        description: formData.description
+      });
+      await loadSections();
+      setFormData({ name: '', description: '' });
+      setIsAdding(false);
+      alert('Section added successfully!');
+    } catch (error) {
+      console.error("Failed to add section:", error);
+      alert('Failed to add section');
+    }
   };
 
-  const handleEdit = (category: Category) => {
-    setEditingId(category.id);
+  const handleEdit = (section: SectionDto) => {
+    setEditingId(section.id);
     setFormData({
-      name: category.name,
-      description: category.description || ''
+      name: section.label, // mapped to name in our update
+      description: '' // Description not currently in SectionDto list view, might be missing
     });
   };
 
-  const handleSaveEdit = () => {
-    if (!formData.name.trim()) {
-      alert('Please enter a category name');
-      return;
+  const handleSaveEdit = async () => {
+    if (!formData.name.trim() || !editingId) return;
+
+    try {
+      await updateSection(editingId, {
+        name: formData.name,
+        description: formData.description
+      });
+      await loadSections();
+      setEditingId(null);
+      setFormData({ name: '', description: '' });
+      alert('Section updated successfully!');
+    } catch (error) {
+      console.error("Failed to update section:", error);
+      alert('Failed to update section');
     }
-
-    setCurrentCategories(
-      currentCategories.map(cat =>
-        cat.id === editingId
-          ? {
-              ...cat,
-              name: formData.name,
-              slug: formData.name.toLowerCase().replace(/\s+/g, '-'),
-              description: formData.description
-            }
-          : cat
-      )
-    );
-
-    setEditingId(null);
-    setFormData({ name: '', description: '' });
-    alert('Category updated! (Demo mode - changes are not persisted)');
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Delete this category? This may affect existing items.')) {
-      setCurrentCategories(currentCategories.filter(cat => cat.id !== id));
-      alert('Category deleted! (Demo mode - changes are not persisted)');
+  const handleToggle = async (id: string, currentStatus: boolean | undefined) => {
+    try {
+      await toggleSection(id);
+      await loadSections(); // Reload to get fresh state
+    } catch (error) {
+      console.error("Failed to toggle section:", error);
+      alert('Failed to toggle section status');
     }
   };
 
@@ -106,7 +125,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
               <span className="font-medium">Admin</span>
             </button>
             <span className="text-muted-foreground">/</span>
-            <span className="meta">Categories</span>
+            <span className="meta">Sections</span>
           </div>
           <button
             onClick={logout}
@@ -121,40 +140,10 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
       <div className="max-w-6xl mx-auto px-6 py-12">
         {/* Page Header */}
         <div className="mb-12">
-          <h1 className="text-3xl mb-4">Category Manager</h1>
+          <h1 className="text-3xl mb-4">Section Manager</h1>
           <p className="text-muted-foreground">
-            Organize your content with custom categories for gallery images and blog posts.
+            Manage blog sections. (Gallery Category management is currently simplified to tags in the Gallery Manager).
           </p>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-3 mb-8 border-b border-border">
-          <button
-            onClick={() => {
-              setActiveTab('gallery');
-              handleCancel();
-            }}
-            className={`px-6 py-3 transition-all ${
-              activeTab === 'gallery'
-                ? 'border-b-2 border-foreground font-medium'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Gallery Categories ({galleryCats.length})
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('blog');
-              handleCancel();
-            }}
-            className={`px-6 py-3 transition-all ${
-              activeTab === 'blog'
-                ? 'border-b-2 border-foreground font-medium'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Blog Sections ({blogCats.length})
-          </button>
         </div>
 
         {/* Add Button */}
@@ -165,7 +154,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
               className="flex items-center gap-2 px-6 py-3 bg-foreground text-background hover:opacity-90 transition-opacity"
             >
               <Plus className="w-5 h-5" />
-              Add {activeTab === 'gallery' ? 'Category' : 'Section'}
+              Add Section
             </button>
           </div>
         )}
@@ -174,7 +163,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
         {(isAdding || editingId) && (
           <div className="mb-8 bg-card border border-border p-6">
             <h2 className="text-xl mb-6">
-              {isAdding ? 'Add New' : 'Edit'} {activeTab === 'gallery' ? 'Category' : 'Section'}
+              {isAdding ? 'Add New' : 'Edit'} Section
             </h2>
 
             <div className="space-y-4">
@@ -186,7 +175,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
-                  placeholder={activeTab === 'gallery' ? 'e.g. Architecture' : 'e.g. Reviews'}
+                  placeholder="e.g. Reviews"
                   required
                 />
               </div>
@@ -198,17 +187,9 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
-                  placeholder="Brief description of this category..."
+                  placeholder="Brief description..."
                   rows={3}
                 />
-              </div>
-
-              {/* Slug Preview */}
-              <div>
-                <label className="block mb-2 text-sm font-medium">Slug (auto-generated)</label>
-                <div className="px-4 py-3 bg-secondary border border-border meta text-muted-foreground">
-                  {formData.name ? formData.name.toLowerCase().replace(/\s+/g, '-') : 'category-slug'}
-                </div>
               </div>
 
               {/* Actions */}
@@ -231,40 +212,44 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
           </div>
         )}
 
-        {/* Categories List */}
+        {/* Sections List */}
         <div className="space-y-4">
-          {currentCategories.map((category) => (
+          {loading ? (
+             <div className="text-center py-8">Loading sections...</div>
+          ) : sections.map((section) => (
             <div
-              key={category.id}
-              className="bg-card border border-border p-6 hover:border-muted-foreground transition-colors"
+              key={section.id}
+              className={`bg-card border border-border p-6 transition-colors ${!section.enabled && section.enabled !== undefined ? 'opacity-60' : ''}`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-medium">{category.name}</h3>
+                    <h3 className="text-lg font-medium">{section.label}</h3>
                     <span className="meta text-muted-foreground text-xs px-2 py-1 border border-border">
-                      {category.slug}
+                      {section.key}
                     </span>
+                    {section.enabled === false && (
+                       <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">Inactive</span>
+                    )}
                   </div>
-                  {category.description && (
-                    <p className="text-muted-foreground">{category.description}</p>
-                  )}
                 </div>
 
                 <div className="flex gap-2 ml-4">
                   <button
-                    onClick={() => handleEdit(category)}
+                    onClick={() => handleEdit(section)}
                     className="p-2 hover:bg-secondary transition-colors"
                     disabled={isAdding || editingId !== null}
+                    title="Edit"
                   >
                     <Edit2 className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => handleDelete(category.id)}
-                    className="p-2 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                    onClick={() => handleToggle(section.id, section.enabled)}
+                    className={`p-2 transition-colors ${section.enabled === false ? 'hover:bg-green-100 text-green-700' : 'hover:bg-destructive hover:text-destructive-foreground'}`}
                     disabled={isAdding || editingId !== null}
+                    title={section.enabled === false ? "Activate" : "Deactivate (Soft Delete)"}
                   >
-                    <Trash2 className="w-5 h-5" />
+                    {section.enabled === false ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
@@ -273,32 +258,11 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
         </div>
 
         {/* Empty State */}
-        {currentCategories.length === 0 && (
+        {!loading && sections.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
-            <p className="mb-4">No categories yet</p>
-            <button
-              onClick={() => setIsAdding(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-foreground text-background hover:opacity-90 transition-opacity"
-            >
-              <Plus className="w-5 h-5" />
-              Add First Category
-            </button>
+            <p className="mb-4">No sections found</p>
           </div>
         )}
-
-        {/* Info Box */}
-        <div className="mt-12 bg-secondary border border-border p-6">
-          <h3 className="font-medium mb-2">About Categories</h3>
-          <p className="text-sm text-muted-foreground mb-3">
-            {activeTab === 'gallery' 
-              ? 'Gallery categories help organize your photos by theme. Each image can belong to one category.'
-              : 'Blog sections organize your articles into different types of content. Each post belongs to one section.'}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            <strong>Note:</strong> Deleting a category may affect existing {activeTab === 'gallery' ? 'images' : 'posts'}. 
-            Make sure to reassign items before deletion.
-          </p>
-        </div>
       </div>
     </div>
   );

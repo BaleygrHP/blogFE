@@ -1,11 +1,11 @@
 // src/lib/api.ts
 import type { FrontPageResponse, MediaKind, PageResponse, PostDto, PublicMediaDto, SectionKey } from "./types";
 
-const API_BASE =
-  process.env.BE_BASE_URL?.replace(/\/$/, "") || "http://localhost:7055/newspaper-project";
-
 // nếu backend bạn để prefix khác (ví dụ /api/public), đổi chỗ này:
 const PAGE_PATH = "/api/public/posts";
+
+const API_BASE =
+  process.env.BE_BASE_URL?.replace(/\/$/, "") || "http://localhost:7055/newspaper-project";
 
 function buildUrl(
   path: string,
@@ -101,4 +101,8 @@ export async function getPublicGallery(
   return fetchJson<PageResponse<PublicMediaDto>>(
     `/api/public/media?${qs.toString()}`
   );
+}
+
+export function getPublicMenu() {
+  return fetchJson<{ label: string; href: string }[]>("/api/public/sections/menu");
 }

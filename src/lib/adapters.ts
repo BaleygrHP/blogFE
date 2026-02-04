@@ -1,5 +1,4 @@
-import { PostDto } from "./types";
-import { Article } from "./types";
+import { PostDto, Article } from "./types";
 
 const SECTION_LABEL: Record<string, string> = {
   EDITORIAL: "Editorial",
@@ -25,5 +24,6 @@ export function mapPostToArticle(
       ? new Date(post.publishedAt).toLocaleDateString("vi-VN")
       : "",
     coverImage: options?.showCover ? post.coverImageUrl ?? undefined : undefined,
+    content: post.contentHtml || post.content,
   };
 }

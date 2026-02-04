@@ -9,7 +9,7 @@ export const SECTION = {
 export type SectionKey = typeof SECTION[keyof typeof SECTION]["key"];
 // ===== BACKEND MODELS =====
 export type PostListItem = {
-  id: string;               
+  id: string;
   slug: string;
   title: string;
   subtitle?: string | null;
@@ -33,6 +33,8 @@ export type PostDto = {
   title: string;
   subtitle?: string | null;
   excerpt?: string;
+  content?: string;
+  contentHtml?: string;
   section: "EDITORIAL" | "NOTES" | "DIARY";
   publishedAt?: string | null;
   coverImageUrl?: string | null;
@@ -60,6 +62,7 @@ export type PublicMediaDto = {
   caption?: string | null;
   location?: string | null;
   takenAt?: string | null; // yyyy-MM-dd
+  category?: string | null;
   createdDate?: string;
   createdAt?: string;
 };
@@ -79,6 +82,7 @@ export type Article = {
   date: string | null;
   slug: string;
   coverImage?: string | undefined;
+  content?: string;
 }
 
 export type GalleryItem = {
