@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Edit3, LogOut, Plus, Edit2, Save, Eye, EyeOff } from 'lucide-react';
+import { Edit3, LogOut, Plus, Edit2, Save, CheckCircle2, CircleOff, Power, PowerOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { 
   getAdminSections, 
@@ -228,8 +228,16 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
                     <span className="meta text-muted-foreground text-xs px-2 py-1 border border-border">
                       {section.key}
                     </span>
-                    {section.enabled === false && (
-                       <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">Inactive</span>
+                    {section.enabled === false ? (
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded inline-flex items-center gap-1">
+                        <CircleOff className="w-3 h-3" />
+                        Inactive
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Active
+                      </span>
                     )}
                   </div>
                 </div>
@@ -249,7 +257,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
                     disabled={isAdding || editingId !== null}
                     title={section.enabled === false ? "Activate" : "Deactivate (Soft Delete)"}
                   >
-                    {section.enabled === false ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                    {section.enabled === false ? <Power className="w-5 h-5" /> : <PowerOff className="w-5 h-5" />}
                   </button>
                 </div>
               </div>

@@ -55,10 +55,13 @@ export type PublicMediaDto = {
   id: string;
   kind: MediaKind;
   url: string;
+  mimeType?: string | null;
+  byteSize?: number | null;
   width?: number | null;
   height?: number | null;
   alt?: string | null;
   title?: string | null;
+  originalFileName?: string | null;
   caption?: string | null;
   location?: string | null;
   takenAt?: string | null; // yyyy-MM-dd
@@ -97,6 +100,8 @@ export type GalleryItem = {
 export type GalleryImage = {
   id: string;
   url: string;
+  mimeType?: string;
+  downloadUrl?: string;
   caption?: string;
   category: string; // not supported by public API yet -> "All"
   location?: string; // not supported -> empty

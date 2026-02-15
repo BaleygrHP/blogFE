@@ -143,16 +143,24 @@ export async function toggleSection(sectionId: string): Promise<SectionDto> {
 
 export interface MediaUploadDto {
     url: string;
-    kind: MediaKind;
-    mimeType?: string;
+    kind?: MediaKind;
     title?: string;
     alt?: string;
     caption?: string;
     location?: string;
     takenAt?: string; // yyyy-MM-dd
     category?: string;
-    width?: number;
-    height?: number;
+}
+
+export interface MediaUploadFileDto {
+    file: File;
+    kind?: MediaKind;
+    title?: string;
+    alt?: string;
+    caption?: string;
+    location?: string;
+    takenAt?: string;
+    category?: string;
 }
 
 export async function getAdminMedia(params?: {
@@ -174,13 +182,41 @@ export async function getMediaCategories(): Promise<string[]> {
     return fetchJson<string[]>(`${API_BASE}/media/categories`);
 }
 
-export async function uploadMedia(
+export async function uploadMediaByUrl(
     data: MediaUploadDto
 ): Promise<PublicMediaDto> {
     return fetchJson<PublicMediaDto>(`${API_BASE}/media/url`, {
         method: "POST",
         body: JSON.stringify(data),
     });
+}
+
+// Backward-compatible alias
+export const uploadMedia = uploadMediaByUrl;
+
+export async function uploadMediaFile(data: MediaUploadFileDto): Promise<PublicMediaDto> {
+    const form = new FormData();
+    form.append("file", data.file);
+    if (data.kind) form.append("kind", data.kind);
+    if (data.title) form.append("title", data.title);
+    if (data.alt) form.append("alt", data.alt);
+    if (data.caption) form.append("caption", data.caption);
+    if (data.location) form.append("location", data.location);
+    if (data.takenAt) form.append("takenAt", data.takenAt);
+    if (data.category) form.append("category", data.category);
+
+    const res = await fetch(`${API_BASE}/media/upload`, {
+        method: "POST",
+        body: form,
+        cache: "no-store",
+    });
+
+    if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`API error ${res.status}: ${errorText}`);
+    }
+
+    return res.json() as Promise<PublicMediaDto>;
 }
 
 export interface MediaUpdateDto {

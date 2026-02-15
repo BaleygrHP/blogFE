@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Edit3, LogOut, Trash2, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { getAdminMedia, uploadMedia, updateMedia, deleteMedia, getMediaCategories, type MediaUploadDto, type MediaUpdateDto } from '@/lib/adminApiClient';
+import { getAdminMedia, uploadMediaByUrl, uploadMediaFile, updateMedia, deleteMedia, getMediaCategories, type MediaUploadDto, type MediaUpdateDto } from '@/lib/adminApiClient';
 import type { PublicMediaDto } from '@/lib/types';
 
 const IMAGES_PER_PAGE = 12;
@@ -11,23 +11,6 @@ const IMAGES_PER_PAGE = 12;
 interface GalleryManagerProps {
   onNavigate?: (page: string) => void;
   onLogout?: () => void;
-}
-
-function inferMimeTypeFromUrl(url: string): string {
-  const lower = (url || "").toLowerCase();
-  const noQuery = lower.split("?")[0].split("#")[0];
-
-  if (noQuery.endsWith(".png")) return "image/png";
-  if (noQuery.endsWith(".gif")) return "image/gif";
-  if (noQuery.endsWith(".webp")) return "image/webp";
-  if (noQuery.endsWith(".avif")) return "image/avif";
-  if (noQuery.endsWith(".svg")) return "image/svg+xml";
-  if (noQuery.endsWith(".bmp")) return "image/bmp";
-  if (noQuery.endsWith(".tif") || noQuery.endsWith(".tiff")) return "image/tiff";
-  if (noQuery.endsWith(".jpg") || noQuery.endsWith(".jpeg")) return "image/jpeg";
-
-  // Most image CDNs (e.g. Unsplash) serve JPEG without file extension.
-  return "image/jpeg";
 }
 
 export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
@@ -38,6 +21,9 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
   const [categories, setCategories] = useState<string[]>([]); // Add state for categories
   const [images, setImages] = useState<PublicMediaDto[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0); // 0-based for API
   const [totalPages, setTotalPages] = useState(1);
@@ -95,24 +81,39 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
   }, [currentPage]);
 
   const handleAddImage = async () => {
-    if (!newImage.url) {
-      alert('Please enter an image URL');
-      return;
-    }
-
     try {
-      const inferredMimeType = inferMimeTypeFromUrl(newImage.url);
-      const mediaData: MediaUploadDto = {
-        url: newImage.url,
-        kind: 'IMAGE',
-        mimeType: inferredMimeType,
-        title: newImage.title,
-        caption: newImage.caption,
-        location: newImage.location,
-        category: newImage.category,
-      };
+      if (uploadMode === 'file') {
+        if (!selectedFile) {
+          alert('Please choose a file');
+          return;
+        }
 
-      await uploadMedia(mediaData);
+        await uploadMediaFile({
+          file: selectedFile,
+          kind: 'IMAGE',
+          title: newImage.title,
+          alt: newImage.title,
+          caption: newImage.caption,
+          location: newImage.location,
+          category: newImage.category,
+        });
+      } else {
+        if (!newImage.url) {
+          alert('Please enter an image URL');
+          return;
+        }
+
+        const mediaData: MediaUploadDto = {
+          url: newImage.url,
+          kind: 'IMAGE',
+          title: newImage.title,
+          caption: newImage.caption,
+          location: newImage.location,
+          category: newImage.category,
+        };
+
+        await uploadMediaByUrl(mediaData);
+      }
       
       // Refresh images list
       const res = await getAdminMedia({
@@ -125,6 +126,8 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
       setTotalPages(res.totalPages);
 
       setIsAdding(false);
+      setUploadMode('file');
+      setSelectedFile(null);
       setNewImage({
         url: '',
         kind: 'IMAGE',
@@ -207,6 +210,16 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
     loadCategories();
   }, [loadCategories]);
 
+  useEffect(() => {
+    if (!selectedFile) {
+      setFilePreviewUrl(null);
+      return;
+    }
+    const nextUrl = URL.createObjectURL(selectedFile);
+    setFilePreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [selectedFile]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Admin Header */}
@@ -252,7 +265,11 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl">Add New Image</h2>
               <button
-                onClick={() => setIsAdding(false)}
+                onClick={() => {
+                  setIsAdding(false);
+                  setUploadMode('file');
+                  setSelectedFile(null);
+                }}
                 className="p-2 hover:bg-secondary transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -260,25 +277,55 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
             </div>
 
             <div className="space-y-4">
-              {/* Image URL */}
-              <div>
-                <label className="block mb-2 text-sm font-medium">Image URL *</label>
-                <input
-                  type="text"
-                  value={newImage.url}
-                  onChange={(e) => setNewImage({ ...newImage, url: e.target.value })}
-                  className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
-                  placeholder="https://..."
-                  required
-                />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('file')}
+                  className={`px-4 py-2 border ${uploadMode === 'file' ? 'bg-foreground text-background border-foreground' : 'border-border'}`}
+                >
+                  File Upload
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('url')}
+                  className={`px-4 py-2 border ${uploadMode === 'url' ? 'bg-foreground text-background border-foreground' : 'border-border'}`}
+                >
+                  URL Ingestion
+                </button>
               </div>
+
+              {uploadMode === 'file' ? (
+                <div key="file-upload-input">
+                  <label className="block mb-2 text-sm font-medium">File *</label>
+                  <input
+                    key="file-input"
+                    type="file"
+                    accept="image/*,video/*,application/pdf"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    className="w-full px-4 py-3 border border-input bg-background"
+                  />
+                </div>
+              ) : (
+                <div key="url-upload-input">
+                  <label className="block mb-2 text-sm font-medium">Image URL *</label>
+                  <input
+                    key="url-input"
+                    type="text"
+                    value={newImage.url || ''}
+                    onChange={(e) => setNewImage({ ...newImage, url: e.target.value })}
+                    className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
+                    placeholder="https://..."
+                    required
+                  />
+                </div>
+              )}
 
               {/* Caption */}
               <div>
                 <label className="block mb-2 text-sm font-medium">Caption</label>
                 <input
                   type="text"
-                  value={newImage.caption}
+                  value={newImage.caption || ''}
                   onChange={(e) => setNewImage({ ...newImage, caption: e.target.value })}
                   className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
                   placeholder="Mountain Morning"
@@ -311,11 +358,21 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
               </div>
 
               {/* Preview */}
-              {newImage.url && (
+              {uploadMode === 'url' && newImage.url && (
                 <div>
                   <label className="block mb-2 text-sm font-medium">Preview</label>
                   <img
                     src={newImage.url}
+                    alt="Preview"
+                    className="w-full max-w-md h-48 object-cover border border-border"
+                  />
+                </div>
+              )}
+              {uploadMode === 'file' && filePreviewUrl && selectedFile?.type.startsWith('image/') && (
+                <div>
+                  <label className="block mb-2 text-sm font-medium">Preview</label>
+                  <img
+                    src={filePreviewUrl}
                     alt="Preview"
                     className="w-full max-w-md h-48 object-cover border border-border"
                   />
@@ -331,7 +388,11 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
                   Add Image
                 </button>
                 <button
-                  onClick={() => setIsAdding(false)}
+                  onClick={() => {
+                    setIsAdding(false);
+                    setUploadMode('file');
+                    setSelectedFile(null);
+                  }}
                   className="px-6 py-3 border border-border hover:border-foreground transition-colors"
                 >
                   Cancel

@@ -109,13 +109,14 @@ export function getRelatedPosts(slug: string, limit = 4) {
 export async function getPublicGallery(
   page = 0,
   size = 24,
-  kind: MediaKind = "IMAGE"
+  kind?: MediaKind
 ): Promise<PageResponse<PublicMediaDto>> {
-  return fetchJson<PageResponse<PublicMediaDto>>("/api/public/media", {
-    kind,
+  const query: Record<string, string> = {
     page: String(page),
     size: String(size),
-  });
+  };
+  if (kind) query.kind = kind;
+  return fetchJson<PageResponse<PublicMediaDto>>("/api/public/media", query);
 }
 
 export function getPublicMenu() {

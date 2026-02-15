@@ -25,6 +25,12 @@ async function pickHeaders(req: NextRequest): Promise<Headers> {
   if (ct) h.set('content-type', ct);
   const accept = req.headers.get('accept');
   if (accept) h.set('accept', accept);
+  const range = req.headers.get('range');
+  if (range) h.set('range', range);
+  const ifNoneMatch = req.headers.get('if-none-match');
+  if (ifNoneMatch) h.set('if-none-match', ifNoneMatch);
+  const ifModifiedSince = req.headers.get('if-modified-since');
+  if (ifModifiedSince) h.set('if-modified-since', ifModifiedSince);
 
   // Internal proxy key – so backend can verify request came from FE proxy
   if (INTERNAL_PROXY_KEY) {
@@ -55,7 +61,7 @@ export async function proxyToBE(req: NextRequest, bePath: string): Promise<NextR
   // Read body only when needed
   const method = req.method.toUpperCase();
   const hasBody = !['GET', 'HEAD'].includes(method);
-  const body = hasBody ? await req.text() : undefined;
+  const body = hasBody ? await req.arrayBuffer() : undefined;
 
   const upstream = await fetch(target, {
     method,
@@ -63,24 +69,29 @@ export async function proxyToBE(req: NextRequest, bePath: string): Promise<NextR
     body,
     // Avoid Next.js caching for API proxy
     cache: 'no-store',
+    redirect: 'manual',
   });
 
-  const contentType = upstream.headers.get('content-type') || '';
-  const raw = await upstream.text();
+  const headers = new Headers();
+  const passthroughHeaders = [
+    'content-type',
+    'content-disposition',
+    'content-length',
+    'etag',
+    'cache-control',
+    'accept-ranges',
+    'content-range',
+    'location',
+    'x-content-type-options',
+  ];
 
-  // Pass-through status & payload
-  if (contentType.includes('application/json')) {
-    try {
-      const json = raw ? JSON.parse(raw) : null;
-      return NextResponse.json(json, { status: upstream.status });
-    } catch {
-      // Backend said JSON but response isn't parseable
-      return new NextResponse(raw, { status: upstream.status });
-    }
+  for (const key of passthroughHeaders) {
+    const value = upstream.headers.get(key);
+    if (value) headers.set(key, value);
   }
 
-  return new NextResponse(raw, {
+  return new NextResponse(upstream.body, {
     status: upstream.status,
-    headers: { 'content-type': contentType || 'text/plain; charset=utf-8' },
+    headers,
   });
 }

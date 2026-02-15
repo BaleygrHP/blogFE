@@ -12,84 +12,88 @@ function toGalleryImage(m: PublicMediaDto): GalleryImage {
   return {
     id: m.id,
     url: m.url,
+    mimeType: (m.mimeType || '').toLowerCase(),
+    downloadUrl: `/api/public/media/${m.id}/download`,
     caption: m.caption ?? m.title ?? m.alt ?? undefined,
     location: m.location ?? undefined,
     date: m.takenAt ?? m.createdDate ?? m.createdAt ?? "",
-    category: "All"
+    category: m.category?.trim() || "Uncategorized",
   };
 }
 
+function isImageMedia(media: GalleryImage): boolean {
+  return (media.mimeType || '').startsWith('image/');
+}
+
+function isVideoMedia(media: GalleryImage): boolean {
+  return (media.mimeType || '').startsWith('video/');
+}
+
+function isPdfMedia(media: GalleryImage): boolean {
+  return (media.mimeType || '') === 'application/pdf';
+}
 
 export function GalleryPage() {
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
-
-  // category vẫn giữ state để UI không vỡ, nhưng hiện public API chưa hỗ trợ category
   const [selectedCategory, setSelectedCategory] = useState('All');
-
-  // UI đang dùng 1-based; backend page là 0-based
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1); // UI 1-based
 
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const categories = useMemo(() => ['All'], []);
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(images.map((i) => i.category).filter(Boolean)));
+    return ['All', ...unique];
+  }, [images]);
 
-  // fetch page when currentPage changes
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  async function load() {
-    setLoading(true);
-    setError(null);
+    async function load() {
+      setLoading(true);
+      setError(null);
 
-    try {
-      // currentPage (UI) là 1-based → API là 0-based
-      const data = await getPublicGallery(currentPage - 1, IMAGES_PER_PAGE, "IMAGE");
+      try {
+        const data = await getPublicGallery(currentPage - 1, IMAGES_PER_PAGE);
+        if (cancelled) return;
 
-      if (cancelled) return;
-
-      setImages(data.content.map(toGalleryImage));
-      setTotalPages(Math.max(1, data.totalPages));
-      setTotalElements(data.totalElements);
-    } catch (e: unknown) {
-      if (cancelled) return;
-
-      const msg = e instanceof Error ? e.message : "Failed to load gallery";
-      setError(msg);
-      setImages([]);
-      setTotalPages(1);
-      setTotalElements(0);
-    } finally {
-      if (!cancelled) setLoading(false);
+        setImages(data.content.map(toGalleryImage));
+        setTotalPages(Math.max(1, data.totalPages));
+        setTotalElements(data.totalElements);
+      } catch (e: unknown) {
+        if (cancelled) return;
+        const msg = e instanceof Error ? e.message : "Failed to load gallery";
+        setError(msg);
+        setImages([]);
+        setTotalPages(1);
+        setTotalElements(0);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }
 
-  load();
-  return () => {
-    cancelled = true;
-  };
-}, [currentPage]);
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage]);
 
-
-  // Filter by category (currently only All)
   const filteredImages = useMemo(() => {
-    return selectedCategory === 'All' ? images : images.filter((img) => img.category === selectedCategory);
+    return selectedCategory === 'All'
+      ? images
+      : images.filter((img) => img.category === selectedCategory);
   }, [images, selectedCategory]);
 
-  // Reset to page 1 when category changes (kept)
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
     setCurrentPage(1);
   };
 
-  // Navigate images in lightbox
   const navigateImage = (direction: 'prev' | 'next') => {
     if (!selectedImage) return;
-
     const currentIndex = filteredImages.findIndex((img) => img.id === selectedImage.id);
     if (currentIndex < 0) return;
 
@@ -105,7 +109,6 @@ export function GalleryPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
-      {/* Page Header */}
       <header className="mb-12 pb-8 border-b border-border">
         <h1 className="mb-4">Gallery</h1>
         <p className="text-lg text-muted-foreground max-w-2xl">
@@ -113,7 +116,6 @@ export function GalleryPage() {
         </p>
       </header>
 
-      {/* Category Filter */}
       <div className="mb-8">
         <div className="flex flex-wrap gap-3">
           {categories.map((category) => (
@@ -132,40 +134,44 @@ export function GalleryPage() {
         </div>
       </div>
 
-      {/* Loading / Error */}
       {loading && <div className="mb-6 meta text-muted-foreground">Loading...</div>}
       {error && <div className="mb-6 meta text-red-500">{error}</div>}
 
-      {/* Results Count */}
       <div className="mb-6 meta text-muted-foreground">
-        {totalElements} {totalElements === 1 ? 'image' : 'images'}
+        {totalElements} {totalElements === 1 ? 'item' : 'items'}
         {selectedCategory !== 'All' && ` in ${selectedCategory}`}
       </div>
 
-      {/* Image Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
         {filteredImages.map((image) => (
           <div key={image.id} onClick={() => setSelectedImage(image)} className="group cursor-pointer">
-            {/* Image */}
             <div className="overflow-hidden mb-3 bg-secondary">
-              <Image
-                src={image.url}
-                alt={image.caption || 'Gallery image'}
-                width={1920}
-                height={1080}
-                className="w-full h-64 object-cover group-hover:opacity-90 transition-opacity"
-                loading="lazy"
-              />
+              {isImageMedia(image) ? (
+                <Image
+                  src={image.url}
+                  alt={image.caption || 'Gallery image'}
+                  width={1920}
+                  height={1080}
+                  className="w-full h-64 object-cover group-hover:opacity-90 transition-opacity"
+                  loading="lazy"
+                />
+              ) : isVideoMedia(image) ? (
+                <video src={image.url} className="w-full h-64 object-cover" controls preload="metadata" />
+              ) : isPdfMedia(image) ? (
+                <iframe src={image.url} title={image.caption || 'PDF preview'} className="w-full h-64 bg-white" />
+              ) : (
+                <div className="w-full h-64 flex items-center justify-center text-sm text-muted-foreground">
+                  File preview unavailable
+                </div>
+              )}
             </div>
 
-            {/* Caption */}
             {image.caption && (
               <h3 className="text-lg mb-1 group-hover:opacity-70 transition-opacity">
                 {image.caption}
               </h3>
             )}
 
-            {/* Meta */}
             <div className="meta text-muted-foreground">
               <span className="inline-block px-2 py-0.5 border border-border mr-2 text-xs">
                 {image.category}
@@ -177,7 +183,6 @@ export function GalleryPage() {
         ))}
       </div>
 
-      {/* Pagination (server-side) */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-4">
           <button
@@ -214,13 +219,11 @@ export function GalleryPage() {
         </div>
       )}
 
-      {/* Lightbox */}
       {selectedImage && (
         <div
           className="fixed inset-0 bg-background/95 z-50 flex items-center justify-center p-6"
           onClick={() => setSelectedImage(null)}
         >
-          {/* Close Button */}
           <button
             onClick={() => setSelectedImage(null)}
             className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center hover:bg-secondary transition-colors"
@@ -228,7 +231,6 @@ export function GalleryPage() {
             <X className="w-6 h-6" />
           </button>
 
-          {/* Previous Button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -239,7 +241,6 @@ export function GalleryPage() {
             <ChevronLeft className="w-8 h-8" />
           </button>
 
-          {/* Next Button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -251,19 +252,47 @@ export function GalleryPage() {
           </button>
 
           <div className="max-w-6xl w-full">
-            {/* Image */}
             <div className="mb-6">
-              <Image
-                src={selectedImage.url}
-                alt={selectedImage.caption || 'Gallery image'}
-                width={1920}
-                height={1080}
-                className="w-full max-h-[70vh] object-contain"
-                onClick={(e) => e.stopPropagation()}
-              />
+              {isImageMedia(selectedImage) ? (
+                <Image
+                  src={selectedImage.url}
+                  alt={selectedImage.caption || 'Gallery image'}
+                  width={1920}
+                  height={1080}
+                  className="w-full max-h-[70vh] object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : isVideoMedia(selectedImage) ? (
+                <video
+                  src={selectedImage.url}
+                  className="w-full max-h-[70vh]"
+                  controls
+                  autoPlay
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : isPdfMedia(selectedImage) ? (
+                <iframe
+                  src={selectedImage.url}
+                  className="w-full h-[70vh] bg-white"
+                  title={selectedImage.caption || 'PDF preview'}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <div className="w-full h-[40vh] flex flex-col items-center justify-center gap-4 border border-border">
+                  <div className="text-muted-foreground">Preview unavailable</div>
+                  {selectedImage.downloadUrl && (
+                    <a
+                      href={selectedImage.downloadUrl}
+                      className="px-4 py-2 border border-border hover:border-foreground"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Download file
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Info */}
             <div className="text-center" onClick={(e) => e.stopPropagation()}>
               {selectedImage.caption && <h2 className="text-2xl mb-2">{selectedImage.caption}</h2>}
               <div className="meta text-muted-foreground">
