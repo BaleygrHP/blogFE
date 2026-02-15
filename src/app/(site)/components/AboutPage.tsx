@@ -47,7 +47,7 @@ export function AboutPage() {
         </p>
 
         <ul>
-          <li>Text is primary. Images support reading, they don't replace it.</li>
+          <li>Text is primary. Images support reading, they don&apos;t replace it.</li>
           <li>Design should be calm, not attention-seeking.</li>
           <li>Features should justify their existence.</li>
           <li>Constraints enable creativity.</li>

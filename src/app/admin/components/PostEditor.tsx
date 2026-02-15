@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,7 @@ import {
   type PostCreateDto 
 } from "@/lib/adminApiClient";
 
-type PostStatus = "published" | "draft";
+// type PostStatus = "published" | "draft";
 
 interface PostEditorProps {
   mode?: "create" | "edit";
@@ -189,7 +189,7 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
               <label className="block mb-2">Section</label>
               <select
                 value={formData.section}
-                onChange={(e) => setFormData((p) => ({ ...p, section: e.target.value as any }))}
+                onChange={(e) => setFormData((p) => ({ ...p, section: e.target.value as "EDITORIAL" | "NOTES" | "DIARY" }))}
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
                 disabled={loading}
               >

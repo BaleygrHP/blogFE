@@ -95,7 +95,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
     }
   };
 
-  const handleToggle = async (id: string, currentStatus: boolean | undefined) => {
+  const handleToggle = async (id: string) => {
     try {
       await toggleSection(id);
       await loadSections(); // Reload to get fresh state
@@ -244,7 +244,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
                     <Edit2 className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => handleToggle(section.id, section.enabled)}
+                    onClick={() => handleToggle(section.id)}
                     className={`p-2 transition-colors ${section.enabled === false ? 'hover:bg-green-100 text-green-700' : 'hover:bg-destructive hover:text-destructive-foreground'}`}
                     disabled={isAdding || editingId !== null}
                     title={section.enabled === false ? "Activate" : "Deactivate (Soft Delete)"}

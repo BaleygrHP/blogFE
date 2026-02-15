@@ -30,7 +30,11 @@ export function Login({ onLogin }: LoginProps) {
       }
 
       // Success
-      onLogin ? onLogin() : router.push('/admin/dashboard');
+      if (onLogin) {
+        onLogin();
+      } else {
+        router.push('/admin/dashboard');
+      }
     } catch (err) {
       console.error(err);
       setError('Invalid credentials');
@@ -65,11 +69,10 @@ export function Login({ onLogin }: LoginProps) {
               <label className="block mb-2">Email</label>
               <input
                 type="email"
-                // value={email}
-                value="admin@dailychronicle.com"
+                value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-                placeholder="admin@dailychronicle.com"
+                placeholder="admin@mock.local"
                 required
               />
             </div>
@@ -79,8 +82,7 @@ export function Login({ onLogin }: LoginProps) {
               <label className="block mb-2">Password</label>
               <input
                 type="password"
-                // value={password}
-                value="admin123"
+                value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
                 placeholder="••••••••"
@@ -100,7 +102,7 @@ export function Login({ onLogin }: LoginProps) {
           {/* Demo Credentials */}
           <div className="mt-6 pt-6 border-t border-border">
             <p className="text-sm text-muted-foreground text-center">
-              Demo: admin@dailychronicle.com / admin123
+              Demo: admin@mock.local / mock
             </p>
           </div>
         </form>

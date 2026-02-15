@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BE_BASE_URL } from '../../_utils/proxy';
+import { BE_BASE_URL } from '@/app/api/_utils/proxy';
 
 export async function POST(req: NextRequest) {
   if (!BE_BASE_URL) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   });
 
   const raw = await upstream.text();
-  let data: any = null;
+  let data: { user?: { id: string }; message?: string } | null = null;
   try {
     data = raw ? JSON.parse(raw) : null;
   } catch {

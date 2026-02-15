@@ -47,9 +47,9 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
           // Gallery API might not be available yet
           console.warn("Gallery API not available:", err);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Failed to load dashboard data:", error);
-        if (error.message?.includes("401")) {
+        if (error instanceof Error && error.message?.includes("401")) {
           router.push("/admin"); // Redirect to login
         }
       } finally {
@@ -58,7 +58,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
     }
 
     loadDashboardData();
-  }, []);
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-background">

@@ -55,10 +55,11 @@ export function GalleryPage() {
       setImages(data.content.map(toGalleryImage));
       setTotalPages(Math.max(1, data.totalPages));
       setTotalElements(data.totalElements);
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (cancelled) return;
 
-      setError(e?.message ?? "Failed to load gallery");
+      const msg = e instanceof Error ? e.message : "Failed to load gallery";
+      setError(msg);
       setImages([]);
       setTotalPages(1);
       setTotalElements(0);

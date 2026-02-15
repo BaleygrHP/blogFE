@@ -8,11 +8,11 @@ import { AboutPage } from "@/app/(site)/components/AboutPage";
 import { ArticlePage } from "@/app/(site)/components/ArticlePage";
 
 type Props = {
-  params: { path?: string[] };
+  params: Promise<{ path?: string[] }>;
 };
 
-export default function SiteCatchAllPage({ params }: Props) {
-  const path = params.path ?? [];
+export default async function SiteCatchAllPage({ params }: Props) {
+  const { path = [] } = await params;
   const [seg1] = path;
 
   // Defensive: if for some reason seg1 is empty, show front page.

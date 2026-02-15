@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Star, Plus, Trash2, ArrowLeft, Layout } from 'lucide-react';
+import { Star, Plus, ArrowLeft, Layout } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { 
   getFrontPageItems, 
@@ -14,17 +14,17 @@ import {
 
 interface FrontPageManagerProps {
   onNavigate?: (page: string) => void;
-  onLogout?: () => void;
+  // onLogout?: () => void;
 }
 
-export function FrontPageManager({ onNavigate, onLogout }: FrontPageManagerProps) {
+export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
   const router = useRouter();
   const nav = (page: string) =>
     onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
 
   const [frontPageItems, setFrontPageItems] = useState<FrontPageItemDto[]>([]);
   const [candidates, setCandidates] = useState<AdminPostDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  // const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Derived state
@@ -42,7 +42,7 @@ export function FrontPageManager({ onNavigate, onLogout }: FrontPageManagerProps
 
   async function loadData() {
     try {
-      setLoading(true);
+      // setLoading(true);
       const [fsItems, postsRes] = await Promise.all([
         getFrontPageItems(),
         getAdminPosts({ page: 0, size: 100, status: 'published' }) // Load enough published posts
@@ -52,7 +52,7 @@ export function FrontPageManager({ onNavigate, onLogout }: FrontPageManagerProps
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
-      setLoading(false);
+      // setLoading(false);
     }
   }
 
@@ -69,7 +69,11 @@ export function FrontPageManager({ onNavigate, onLogout }: FrontPageManagerProps
   const handleAddCurated = async (postId: string) => {
     try {
       if (curatedItemIds.includes(postId)) return;
-      await addCuratedPost(postId);
+      await addCuratedPost({
+        postId,
+        position: curatedItemIds.length,
+        active: true
+      });
       await loadData();
     } catch (error) {
       console.error("Failed to add curated:", error);

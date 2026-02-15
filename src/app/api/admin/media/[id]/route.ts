@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { proxyToBE } from '../../../_utils/proxy';
+import { proxyToBE } from '@/app/api/_utils/proxy';
 
 // GET /api/admin/media/[id]
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

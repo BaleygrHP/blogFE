@@ -19,10 +19,10 @@ export function NotesPage({ onReadArticle }: NotesPageProps) {
   const [items, setItems] = useState<PostDto[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   async function load(p: number, append: boolean) {
-    setLoading(true);
+    if (append) setLoading(true);
     const res = (await getContentPosts("NOTES", p, 20)) as PageResponse<PostDto>;
 
     setItems(prev =>
@@ -34,8 +34,7 @@ export function NotesPage({ onReadArticle }: NotesPageProps) {
   }
 
   useEffect(() => {
-    load(0, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setTimeout(() => load(0, false), 0);
   }, []);
 
   const articles = useMemo(

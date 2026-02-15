@@ -12,6 +12,11 @@ if (!BE_BASE_URL) {
   console.warn('[api-proxy] Missing BE_BASE_URL (or NEXT_PUBLIC_BE_BASE_URL) env var');
 }
 
+/**
+ * Internal proxy key – must match the backend's `app.internal-proxy-key`.
+ */
+const INTERNAL_PROXY_KEY = process.env.INTERNAL_PROXY_KEY || '';
+
 async function pickHeaders(req: NextRequest): Promise<Headers> {
   const h = new Headers();
 
@@ -20,6 +25,11 @@ async function pickHeaders(req: NextRequest): Promise<Headers> {
   if (ct) h.set('content-type', ct);
   const accept = req.headers.get('accept');
   if (accept) h.set('accept', accept);
+
+  // Internal proxy key – so backend can verify request came from FE proxy
+  if (INTERNAL_PROXY_KEY) {
+    h.set('X-Internal-Proxy-Key', INTERNAL_PROXY_KEY);
+  }
 
   // Actor header: prefer cookie (set by /api/auth/login), fallback to incoming header
   const cookieStore = await cookies();
