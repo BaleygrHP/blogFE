@@ -17,7 +17,6 @@ import {
   addCuratedPost,
   deleteFrontPageItem,
   getAdminPosts,
-  getAdminSections,
   getFrontPageComposition,
   removeFeaturedPost,
   reorderFrontPageItems,
@@ -45,16 +44,6 @@ import { CSS } from "@dnd-kit/utilities";
 const SUPPORTING_MAX_ITEMS = 6;
 const PICKER_PAGE_SIZE = 12;
 
-type PickerMode = "lead" | "supporting" | null;
-type SectionFilter = "all" | "editorial" | "diary" | "notes";
-
-const SECTION_FILTER_OPTIONS: Array<{ value: SectionFilter; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "editorial", label: "Editorial" },
-  { value: "diary", label: "Diary" },
-  { value: "notes", label: "Notes" },
-];
-
 interface FrontPageManagerProps {
   onNavigate?: (page: string) => void;
 }
@@ -70,50 +59,20 @@ function normalizeKey(value?: string): string {
     .toLowerCase();
 }
 
-function sectionNameFromKey(key: string): string {
-  switch (normalizeKey(key)) {
-    case "editorial":
-      return "Editorial";
-    case "diary":
-      return "Diary";
-    case "notes":
-      return "Notes";
-    default:
-      return key ? key.toUpperCase() : "Unknown";
-  }
-}
-
-function sectionKeyFromPost(post: AdminPostDto): string {
-  const rawSection = (post as unknown as { section?: unknown }).section;
-
-  if (typeof rawSection === "string") {
-    return normalizeKey(rawSection);
-  }
-
-  if (rawSection && typeof rawSection === "object") {
-    const sectionObject = rawSection as { key?: string; name?: string };
-    return normalizeKey(sectionObject.key || sectionObject.name);
-  }
-
-  return "";
-}
-
 function sectionLabelFromPost(post: AdminPostDto): string {
-  return sectionNameFromKey(sectionKeyFromPost(post));
+  return String(post.section ?? "").trim();
 }
 
 function toPreviewFromPost(post: AdminPostDto) {
-  const sectionKey = sectionKeyFromPost(post);
-  const sectionName = sectionNameFromKey(sectionKey);
-
+  const section = sectionLabelFromPost(post);
   return {
     id: post.id,
     title: post.title,
     slug: post.slug,
     section: {
       id: "",
-      key: sectionKey,
-      name: sectionName,
+      key: normalizeKey(section),
+      name: section || "Unknown",
     },
   };
 }
@@ -208,25 +167,17 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [banner, setBanner] = useState<BannerState>(null);
-  const [modalToast, setModalToast] = useState<BannerState>(null);
 
-  const [pickerMode, setPickerMode] = useState<PickerMode>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
   const [pickerPage, setPickerPage] = useState(0);
   const [pickerTotalPages, setPickerTotalPages] = useState(1);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerPosts, setPickerPosts] = useState<AdminPostDto[]>([]);
-
-  const [sectionFilter, setSectionFilter] = useState<SectionFilter>("all");
-  const [sectionIdByKey, setSectionIdByKey] = useState<Record<string, string>>({});
-  const [sectionsLoaded, setSectionsLoaded] = useState(false);
-
   const [pendingAddPostIds, setPendingAddPostIds] = useState<string[]>([]);
+  const [pickerBanner, setPickerBanner] = useState<BannerState>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-
-  const isPickerOpen = pickerMode !== null;
-  const isSupportingMode = pickerMode === "supporting";
 
   const featuredPostId = composition?.featured?.id ?? null;
   const supportingItems = composition?.items ?? [];
@@ -235,9 +186,6 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
     [composition]
   );
   const pendingAddSet = useMemo(() => new Set(pendingAddPostIds), [pendingAddPostIds]);
-  const maxSupportingReached = supportingItems.length >= SUPPORTING_MAX_ITEMS;
-  const selectedSectionId =
-    sectionFilter === "all" ? undefined : sectionIdByKey[sectionFilter];
 
   const loadComposition = async () => {
     const data = await getFrontPageComposition();
@@ -278,117 +226,31 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
   }, []);
 
   useEffect(() => {
-    if (pickerMode !== "supporting" || sectionsLoaded) return;
-
-    let cancelled = false;
-    async function loadSections() {
-      try {
-        const sections = await getAdminSections();
-        if (cancelled) return;
-
-        const nextMap: Record<string, string> = {};
-        for (const section of sections) {
-          const key = normalizeKey(section.key);
-          if (key && section.id) {
-            nextMap[key] = section.id;
-          }
-        }
-
-        setSectionIdByKey(nextMap);
-        setSectionsLoaded(true);
-      } catch (error) {
-        if (!cancelled) {
-          setModalToast({ type: "error", message: normalizeErrorMessage(error) });
-        }
-      }
-    }
-
-    loadSections();
-    return () => {
-      cancelled = true;
-    };
-  }, [pickerMode, sectionsLoaded]);
-
-  useEffect(() => {
     if (!isPickerOpen) return;
 
     const handle = setTimeout(async () => {
       try {
         setPickerLoading(true);
-
-        const params: {
-          status: "published";
-          q?: string;
-          page: number;
-          size: number;
-          sectionId?: string;
-        } = {
+        const res = await getAdminPosts({
           status: "published",
           q: pickerQuery.trim() || undefined,
           page: pickerPage,
           size: PICKER_PAGE_SIZE,
-        };
-
-        const shouldFilterBySection = isSupportingMode && sectionFilter !== "all";
-        if (shouldFilterBySection && selectedSectionId) {
-          params.sectionId = selectedSectionId;
-        }
-
-        const res = await getAdminPosts(params);
-        let content = res.content;
-
-        if (shouldFilterBySection && !selectedSectionId) {
-          content = content.filter((post) => sectionKeyFromPost(post) === sectionFilter);
-        }
+        });
 
         setPickerTotalPages(Math.max(1, res.totalPages));
-        setPickerPosts((prev) => (pickerPage === 0 ? content : [...prev, ...content]));
+        setPickerPosts((prev) => (pickerPage === 0 ? res.content : [...prev, ...res.content]));
       } catch (error) {
         console.error("Failed to load story picker posts:", error);
         const msg = normalizeErrorMessage(error);
-        setModalToast({ type: "error", message: msg });
+        setBanner({ type: "error", message: msg });
       } finally {
         setPickerLoading(false);
       }
     }, 250);
 
     return () => clearTimeout(handle);
-  }, [
-    isPickerOpen,
-    pickerMode,
-    pickerQuery,
-    pickerPage,
-    sectionFilter,
-    selectedSectionId,
-    isSupportingMode,
-  ]);
-
-  useEffect(() => {
-    if (!isPickerOpen || !modalToast) return;
-
-    const timer = window.setTimeout(() => setModalToast(null), 2600);
-    return () => window.clearTimeout(timer);
-  }, [isPickerOpen, modalToast]);
-
-  useEffect(() => {
-    if (!isPickerOpen) return;
-
-    const handler = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-
-      setPickerMode(null);
-      setModalToast(null);
-      setPickerQuery("");
-      setPickerPage(0);
-      setPickerTotalPages(1);
-      setPickerPosts([]);
-      setSectionFilter("all");
-      setPendingAddPostIds([]);
-    };
-
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isPickerOpen]);
+  }, [isPickerOpen, pickerQuery, pickerPage]);
 
   const runMutation = async (
     optimisticUpdater: (current: FrontPageCompositionDto) => FrontPageCompositionDto,
@@ -403,15 +265,11 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
     setComposition(optimistic);
     setSaving(true);
     setBanner(null);
-    setModalToast(null);
 
     try {
       await apiCall(expectedVersion);
       await loadComposition();
       setBanner({ type: "success", message: successMessage });
-      if (isPickerOpen) {
-        setModalToast({ type: "success", message: successMessage });
-      }
     } catch (error) {
       console.error("Front-page mutation failed:", error);
       setComposition(before);
@@ -422,18 +280,9 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
           // ignore refresh failures
         }
         setBanner({ type: "error", message: "Layout changed elsewhere. Data has been refreshed." });
-        if (isPickerOpen) {
-          setModalToast({
-            type: "error",
-            message: "Layout changed elsewhere. Data has been refreshed.",
-          });
-        }
       } else {
         const msg = normalizeErrorMessage(error);
         setBanner({ type: "error", message: msg });
-        if (isPickerOpen) {
-          setModalToast({ type: "error", message: msg });
-        }
         if (msg.toLowerCase().includes("failed to fetch") || msg.toLowerCase().includes("network")) {
           alert(msg);
         }
@@ -445,7 +294,6 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
 
   const handleSetLead = async (post: AdminPostDto) => {
     if (!composition) return;
-
     await runMutation(
       (current) => ({
         ...current,
@@ -461,7 +309,6 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
 
   const handleRemoveLead = async () => {
     if (!composition) return;
-
     await runMutation(
       (current) => ({
         ...current,
@@ -474,13 +321,17 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
 
   const handleAddSupporting = async (post: AdminPostDto) => {
     if (!composition) return;
-    if (maxSupportingReached) {
-      setModalToast({ type: "error", message: `Maximum ${SUPPORTING_MAX_ITEMS} supporting stories allowed.` });
+    if (composition.items.length >= SUPPORTING_MAX_ITEMS) {
+      setPickerBanner({ type: "error", message: `Supporting stories max is ${SUPPORTING_MAX_ITEMS}` });
       return;
     }
-    if (featuredPostId === post.id || supportingIds.has(post.id) || pendingAddSet.has(post.id)) {
+    if (featuredPostId === post.id) {
+      setPickerBanner({ type: "info", message: "Current lead cannot be added to supporting." });
       return;
     }
+    if (supportingIds.has(post.id)) return;
+    if (pendingAddSet.has(post.id)) return;
+    setPickerBanner(null);
 
     setPendingAddPostIds((prev) => (prev.includes(post.id) ? prev : [...prev, post.id]));
 
@@ -520,7 +371,6 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
 
   const handleRemoveSupporting = async (item: FrontPageSupportingItemDto) => {
     if (!composition) return;
-
     await runMutation(
       (current) => ({
         ...current,
@@ -555,29 +405,24 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
     );
   };
 
-  const resetPickerState = () => {
+  const openPicker = () => {
     setPickerQuery("");
     setPickerPage(0);
     setPickerTotalPages(1);
     setPickerPosts([]);
-    setSectionFilter("all");
-    setModalToast(null);
     setPendingAddPostIds([]);
-  };
-
-  const openLeadPicker = () => {
-    resetPickerState();
-    setPickerMode("lead");
-  };
-
-  const openSupportingPicker = () => {
-    resetPickerState();
-    setPickerMode("supporting");
+    setPickerBanner(null);
+    setIsPickerOpen(true);
   };
 
   const closePicker = () => {
-    setPickerMode(null);
-    resetPickerState();
+    setIsPickerOpen(false);
+    setPickerQuery("");
+    setPickerPage(0);
+    setPickerTotalPages(1);
+    setPickerPosts([]);
+    setPendingAddPostIds([]);
+    setPickerBanner(null);
   };
 
   const lastUpdated = composition?.updatedAt || "-";
@@ -641,7 +486,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
             {composition?.featured && (
               <button
                 type="button"
-                onClick={openLeadPicker}
+                onClick={openPicker}
                 disabled={loading || saving}
                 className="px-3 py-1 border border-border hover:border-foreground transition-colors text-sm disabled:opacity-40"
               >
@@ -655,7 +500,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
               <p className="text-muted-foreground mb-4">No lead story selected.</p>
               <button
                 type="button"
-                onClick={openLeadPicker}
+                onClick={openPicker}
                 disabled={loading || saving}
                 className="px-4 py-2 border border-border hover:border-foreground transition-colors disabled:opacity-40"
               >
@@ -699,8 +544,8 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
             </h2>
             <button
               type="button"
-              onClick={openSupportingPicker}
-              disabled={loading || saving}
+              onClick={openPicker}
+              disabled={loading || saving || supportingItems.length >= SUPPORTING_MAX_ITEMS}
               className="inline-flex items-center gap-2 px-3 py-1 border border-border hover:border-foreground transition-colors text-sm disabled:opacity-40"
             >
               <Plus className="w-4 h-4" />
@@ -739,160 +584,115 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
       </div>
 
       {isPickerOpen && (
-        <div className="fixed inset-0 z-40 overflow-y-auto bg-background/70">
-          <div className="min-h-full flex items-start justify-center p-6">
-            <div className="w-full max-w-3xl h-[90vh] bg-card border border-border flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between p-4 border-b border-border">
-                <div>
-                  <h3 className="font-medium">
-                    {isSupportingMode ? "Add Supporting Story" : "Select Lead Story"}
-                  </h3>
-                  <p className="meta text-muted-foreground">Press Esc to close</p>
-                </div>
-                <button onClick={closePicker} className="p-2 hover:bg-secondary transition-colors" aria-label="Close modal">
-                  <X className="w-4 h-4" />
-                </button>
+        <div className="fixed inset-0 bg-background/70 z-40 flex items-start justify-center p-6">
+          <div
+            className="w-full max-w-3xl h-[90vh] bg-card border border-border flex flex-col overflow-hidden"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              height: "90vh",
+              maxHeight: "90vh",
+              overflow: "hidden",
+            }}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-border" style={{ flexShrink: 0 }}>
+              <h3 className="font-medium">Add Story</h3>
+              <button onClick={closePicker} className="p-2 hover:bg-secondary transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-border" style={{ flexShrink: 0 }}>
+              <div className="relative">
+                <Search
+                  className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                  style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                />
+                <input
+                  type="text"
+                  value={pickerQuery}
+                  onChange={(e) => {
+                    setPickerQuery(e.target.value);
+                    setPickerPage(0);
+                  }}
+                  placeholder="Search published posts..."
+                  className="w-full h-11 pl-12 pr-3 border border-border bg-background leading-5"
+                  style={{ paddingLeft: 44, paddingRight: 12 }}
+                />
               </div>
+            </div>
 
-              <div className="p-4 border-b border-border space-y-3">
-                <div className="h-11 flex items-center gap-2 border border-border bg-background px-3">
-                  <Search className="w-4 h-4 text-muted-foreground shrink-0 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={pickerQuery}
-                    onChange={(e) => {
-                      setPickerQuery(e.target.value);
-                      setPickerPage(0);
-                    }}
-                    placeholder="Search published posts..."
-                    className="h-full w-full border-0 bg-transparent p-0 leading-5 outline-none"
-                  />
-                </div>
-
-                {isSupportingMode && (
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="supporting-section-filter" className="meta text-muted-foreground">
-                      Filter:
-                    </label>
-                    <select
-                      id="supporting-section-filter"
-                      value={sectionFilter}
-                      onChange={(e) => {
-                        setSectionFilter(e.target.value as SectionFilter);
-                        setPickerPage(0);
-                      }}
-                      className="h-9 px-3 border border-border bg-background text-sm"
-                    >
-                      {SECTION_FILTER_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+            {pickerBanner && (
+              <div
+                className={`px-4 py-2 border-b ${
+                  pickerBanner.type === "success"
+                    ? "border-green-600 text-green-700 bg-green-50"
+                    : pickerBanner.type === "info"
+                    ? "border-blue-600 text-blue-700 bg-blue-50"
+                    : "border-destructive text-destructive bg-destructive/10"
+                }`}
+                style={{ flexShrink: 0 }}
+              >
+                {pickerBanner.message}
               </div>
+            )}
 
-              {isSupportingMode && maxSupportingReached && (
-                <div className="mx-4 mt-4 p-3 border border-blue-600 text-blue-700 bg-blue-50" role="status" aria-live="polite">
-                  Maximum {SUPPORTING_MAX_ITEMS} supporting stories allowed.
-                </div>
-              )}
-
-              {modalToast && (
-                <div
-                  className={`mx-4 mt-4 p-3 border ${
-                    modalToast.type === "success"
-                      ? "border-green-600 text-green-700 bg-green-50"
-                      : modalToast.type === "info"
-                      ? "border-blue-600 text-blue-700 bg-blue-50"
-                      : "border-destructive text-destructive bg-destructive/10"
-                  }`}
-                  role="status"
-                  aria-live="polite"
-                >
-                  {modalToast.message}
-                </div>
-              )}
-
-              <div className="px-4 flex-1 min-h-0 overflow-y-auto">
-                {pickerPosts.map((post) => {
-                  const isLead = featuredPostId === post.id;
-                  const isAdded = supportingIds.has(post.id);
-                  const addDisabled = saving || maxSupportingReached || pendingAddSet.has(post.id);
-
-                  return (
-                    <div key={post.id} className="py-4 border-b border-border/40 last:border-b-0">
-                      <div className="font-medium mb-1">{post.title}</div>
-                      <div className="meta text-muted-foreground mb-3">
-                        {sectionLabelFromPost(post)} - {post.publishedAt || "-"}
-                      </div>
-
-                      {isSupportingMode ? (
-                        isLead ? (
-                          <span
-                            className="inline-flex items-center px-2 py-1 text-xs border border-foreground bg-foreground text-background"
-                            aria-label="Current lead story"
-                          >
-                            Current Lead
-                          </span>
-                        ) : isAdded ? (
-                          <span
-                            className="inline-flex items-center px-2 py-1 text-xs border border-border text-muted-foreground bg-secondary"
-                            aria-label="Already added to supporting"
-                          >
-                            Already Added
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleAddSupporting(post)}
-                            disabled={addDisabled}
-                            aria-disabled={addDisabled}
-                            className="px-3 py-1 border border-border hover:border-foreground text-sm disabled:opacity-40"
-                          >
-                            Add
-                          </button>
-                        )
-                      ) : isLead ? (
-                        <span
-                          className="inline-flex items-center px-2 py-1 text-xs border border-foreground bg-foreground text-background"
-                          aria-label="Current lead story"
-                        >
-                          Current Lead
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleSetLead(post)}
-                          disabled={saving}
-                          className="px-3 py-1 border border-border hover:border-foreground text-sm disabled:opacity-40"
-                        >
-                          Make Lead
-                        </button>
-                      )}
+            <div
+              className="p-4 space-y-3 flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+              style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
+            >
+              {pickerPosts.map((post) => {
+                const isLead = featuredPostId === post.id;
+                const isAdded = supportingIds.has(post.id);
+                const isPendingAdd = pendingAddSet.has(post.id);
+                return (
+                  <div key={post.id} className="border border-border p-3">
+                    <div className="font-medium mb-1">{post.title}</div>
+                    <div className="meta text-muted-foreground mb-3">
+                      {sectionLabelFromPost(post)} • {post.publishedAt || "-"}
                     </div>
-                  );
-                })}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSetLead(post)}
+                        disabled={saving || isLead}
+                        className="px-3 py-1 bg-foreground text-background text-sm disabled:opacity-40"
+                      >
+                        {isLead ? "Current Lead ✓" : "Make Lead"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddSupporting(post)}
+                        disabled={saving || isAdded || isPendingAdd || supportingItems.length >= SUPPORTING_MAX_ITEMS}
+                        className="px-3 py-1 border border-border hover:border-foreground text-sm disabled:opacity-40"
+                      >
+                        {isPendingAdd ? "Adding..." : isAdded ? "Added ✓" : "Add to Supporting"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
 
-                {pickerLoading && <div className="meta text-muted-foreground py-4">Loading...</div>}
-                {!pickerLoading && pickerPosts.length === 0 && (
-                  <div className="meta text-muted-foreground py-4">No published posts found.</div>
-                )}
-              </div>
+              {pickerLoading && <div className="meta text-muted-foreground">Loading...</div>}
+              {!pickerLoading && pickerPosts.length === 0 && (
+                <div className="meta text-muted-foreground">No published posts found.</div>
+              )}
+            </div>
 
-              <div className="p-4 border-t border-border flex items-center justify-between shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setPickerPage((p) => p + 1)}
-                  disabled={pickerLoading || pickerPage + 1 >= pickerTotalPages}
-                  className="px-3 py-1 border border-border hover:border-foreground text-sm disabled:opacity-40"
-                >
-                  Load more
-                </button>
-                <div className="meta text-muted-foreground">
-                  Page {pickerPage + 1}/{pickerTotalPages}
-                </div>
+            <div
+              className="p-4 border-t border-border flex items-center justify-between shrink-0"
+              style={{ flexShrink: 0 }}
+            >
+              <button
+                type="button"
+                onClick={() => setPickerPage((p) => p + 1)}
+                disabled={pickerLoading || pickerPage + 1 >= pickerTotalPages}
+                className="px-3 py-1 border border-border hover:border-foreground text-sm disabled:opacity-40"
+              >
+                Load more
+              </button>
+              <div className="meta text-muted-foreground">
+                Page {pickerPage + 1}/{pickerTotalPages}
               </div>
             </div>
           </div>
