@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { FileText, FilePlus, LogOut, Edit3, Image, Tag, Layout } from 'lucide-react';
+import { FileText, FilePlus, LogOut, Edit3, Image as ImageIcon, Tag, Layout } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getAdminPosts, getAdminMedia, type AdminPostDto } from '@/lib/adminApiClient';
 import type { PublicMediaDto } from '@/lib/types';
+import NextImage from 'next/image';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -202,7 +203,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
             <div className="bg-card border border-border p-6 mb-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="section-label text-muted-foreground">Total Images</span>
-                <Image className="w-5 h-5 text-muted-foreground" />
+                <ImageIcon className="w-5 h-5 text-muted-foreground" />
               </div>
               <div className="text-3xl font-medium">
                 {loading ? "..." : galleryCount}
@@ -218,9 +219,11 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
                   onClick={() => nav('gallery')}
                 >
                   <div className="overflow-hidden mb-2 bg-secondary border border-border group-hover:border-foreground transition-colors">
-                    <img
+                    <NextImage
                       src={image.url}
                       alt={image.caption || image.title || 'Gallery image'}
+                      width={image.width ?? 640}
+                      height={image.height ?? 480}
                       className="w-full h-32 object-cover group-hover:opacity-90 transition-opacity"
                     />
                   </div>

@@ -24,7 +24,17 @@ async function fetchJson<T>(
         throw new Error(`API error ${res.status}: ${errorText}`);
     }
 
-    return res.json() as Promise<T>;
+    // Some admin endpoints return 204 No Content (e.g. reorder/delete).
+    if (res.status === 204 || res.status === 205) {
+        return undefined as T;
+    }
+
+    const raw = await res.text();
+    if (!raw || !raw.trim()) {
+        return undefined as T;
+    }
+
+    return JSON.parse(raw) as T;
 }
 
 // ===== POSTS API =====
@@ -52,12 +62,14 @@ export interface AdminPostDto extends PostDto {
 export async function getAdminPosts(params?: {
     sectionId?: string;
     status?: "published" | "draft";
+    q?: string;
     page?: number;
     size?: number;
 }): Promise<PageResponse<AdminPostDto>> {
     const query = new URLSearchParams();
     if (params?.sectionId) query.append("sectionId", params.sectionId);
     if (params?.status) query.append("status", params.status.toUpperCase());
+    if (params?.q) query.append("q", params.q);
     if (params?.page !== undefined) query.append("page", String(params.page));
     if (params?.size !== undefined) query.append("size", String(params.size));
 
@@ -110,23 +122,46 @@ export async function unpublishPost(postId: string): Promise<AdminPostDto> {
 
 export interface SectionDto {
     id: string;
-    key: SectionKey;
-    label: string;
+    key: string;
+    name?: string;
+    description?: string | null;
+    // legacy FE compatibility
+    label?: string;
+    active?: boolean;
     enabled?: boolean;
+    sortOrder?: number;
+    visibility?: "PUBLIC" | "PRIVATE";
 }
 
 export async function getAdminSections(): Promise<SectionDto[]> {
     return fetchJson<SectionDto[]>(`${API_BASE}/sections`);
 }
 
-export async function createSection(data: { name: string; description?: string }): Promise<SectionDto> {
+export interface CreateSectionDto {
+    key: string;
+    name: string;
+    description?: string;
+    sortOrder?: number;
+    active?: boolean;
+    visibility: "PUBLIC" | "PRIVATE";
+}
+
+export async function createSection(data: CreateSectionDto): Promise<SectionDto> {
     return fetchJson<SectionDto>(`${API_BASE}/sections`, {
         method: "POST",
         body: JSON.stringify(data),
     });
 }
 
-export async function updateSection(id: string, data: { name: string; description?: string }): Promise<SectionDto> {
+export interface UpdateSectionDto {
+    name?: string;
+    description?: string;
+    sortOrder?: number;
+    active?: boolean;
+    visibility?: "PUBLIC" | "PRIVATE";
+}
+
+export async function updateSection(id: string, data: UpdateSectionDto): Promise<SectionDto> {
     return fetchJson<SectionDto>(`${API_BASE}/sections/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -248,10 +283,62 @@ export async function deleteMedia(mediaId: string): Promise<void> {
 // ===== FRONT PAGE API =====
 
 export interface FrontPageItemDto {
-    id: string;
+    id: number | string;
     postId: string;
     position: number;
-    section: "featured" | "curated";
+    active: boolean;
+    pinned: boolean;
+    startAt?: string | null;
+    endAt?: string | null;
+    note?: string | null;
+    post?: {
+        id: string;
+        title: string;
+        slug: string;
+        section?: {
+            id: string;
+            key: string;
+            name?: string;
+        };
+    } | null;
+}
+
+export interface FrontPageSupportingItemDto {
+    id: number;
+    postId: string;
+    position: number;
+    active: boolean;
+    pinned: boolean;
+    startAt?: string | null;
+    endAt?: string | null;
+    note?: string | null;
+    post?: {
+        id: string;
+        title: string;
+        slug: string;
+        section?: {
+            id: string;
+            key: string;
+            name?: string;
+        };
+    } | null;
+}
+
+export interface FrontPageCompositionDto {
+    status: "SAVED";
+    version: number;
+    updatedAt?: string | null;
+    featured: {
+        id: string;
+        title: string;
+        slug: string;
+        section?: {
+            id: string;
+            key: string;
+            name?: string;
+        };
+    } | null;
+    items: FrontPageSupportingItemDto[];
 }
 
 export interface UpsertCuratedRequest {
@@ -267,17 +354,52 @@ export async function getFrontPageItems(): Promise<FrontPageItemDto[]> {
     return fetchJson<FrontPageItemDto[]>(`${API_BASE}/front-page/items`);
 }
 
+export async function getFrontPageComposition(): Promise<FrontPageCompositionDto> {
+    return fetchJson<FrontPageCompositionDto>(`${API_BASE}/front-page/composition`);
+}
+
+function frontPageMutationHeaders(version: number): Record<string, string> {
+    return {
+        "If-Match": `"${version}"`,
+        "X-FrontPage-Version": String(version),
+    };
+}
+
 // Changed to use query param as per AdminPostController
-export async function setFeaturedPost(postId: string): Promise<FrontPageItemDto> {
-    return fetchJson<FrontPageItemDto>(`${API_BASE}/front-page/featured?postId=${postId}`, {
+export async function setFeaturedPost(postId: string, version: number): Promise<FrontPageItemDto> {
+    return fetchJson<FrontPageItemDto>(`${API_BASE}/front-page/featured?postId=${encodeURIComponent(postId)}`, {
         method: "POST",
+        headers: frontPageMutationHeaders(version),
+    });
+}
+
+export async function removeFeaturedPost(version: number): Promise<FrontPageCompositionDto> {
+    return fetchJson<FrontPageCompositionDto>(`${API_BASE}/front-page/featured`, {
+        method: "DELETE",
+        headers: frontPageMutationHeaders(version),
     });
 }
 
 // Changed to send full object
-export async function addCuratedPost(request: UpsertCuratedRequest): Promise<FrontPageItemDto> {
+export async function addCuratedPost(request: UpsertCuratedRequest, version: number): Promise<FrontPageItemDto> {
     return fetchJson<FrontPageItemDto>(`${API_BASE}/front-page/curated`, {
         method: "POST",
+        headers: frontPageMutationHeaders(version),
         body: JSON.stringify(request),
+    });
+}
+
+export async function reorderFrontPageItems(orderedIds: number[], version: number): Promise<void> {
+    await fetchJson<void>(`${API_BASE}/front-page/reorder`, {
+        method: "POST",
+        headers: frontPageMutationHeaders(version),
+        body: JSON.stringify({ orderedIds }),
+    });
+}
+
+export async function deleteFrontPageItem(itemId: number, version: number): Promise<void> {
+    await fetchJson<void>(`${API_BASE}/front-page/items/${itemId}`, {
+        method: "DELETE",
+        headers: frontPageMutationHeaders(version),
     });
 }

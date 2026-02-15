@@ -111,6 +111,8 @@ export function ArticlePage({ slug , onBack }: ArticlePageProps) {
               <Image
                 src={article.coverImage}
                 alt={article.title}
+                width={1200}
+                height={630}
                 className="w-full"
               />
             </div>

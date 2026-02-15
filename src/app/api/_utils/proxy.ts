@@ -29,6 +29,11 @@ async function pickHeaders(req: NextRequest): Promise<Headers> {
   if (range) h.set('range', range);
   const ifNoneMatch = req.headers.get('if-none-match');
   if (ifNoneMatch) h.set('if-none-match', ifNoneMatch);
+  const ifMatch = req.headers.get('if-match');
+  if (ifMatch) h.set('if-match', ifMatch);
+  const frontPageVersion =
+    req.headers.get('x-frontpage-version') || req.headers.get('X-FrontPage-Version');
+  if (frontPageVersion) h.set('X-FrontPage-Version', frontPageVersion);
   const ifModifiedSince = req.headers.get('if-modified-since');
   if (ifModifiedSince) h.set('if-modified-since', ifModifiedSince);
 

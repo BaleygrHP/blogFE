@@ -36,6 +36,13 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
     loadSections();
   }, []);
 
+  const toSectionKey = (value: string): string =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
   async function loadSections() {
     try {
       setLoading(true);
@@ -54,10 +61,19 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
       return;
     }
 
+    const sectionKey = toSectionKey(formData.name);
+    if (!sectionKey) {
+      alert('Cannot generate section key from this name');
+      return;
+    }
+
     try {
       await createSection({
-        name: formData.name,
-        description: formData.description
+        key: sectionKey,
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        visibility: "PUBLIC",
+        active: true
       });
       await loadSections();
       setFormData({ name: '', description: '' });
@@ -72,8 +88,8 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
   const handleEdit = (section: SectionDto) => {
     setEditingId(section.id);
     setFormData({
-      name: section.label, // mapped to name in our update
-      description: '' // Description not currently in SectionDto list view, might be missing
+      name: section.name ?? section.label ?? section.key,
+      description: section.description ?? ''
     });
   };
 
@@ -82,8 +98,8 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
 
     try {
       await updateSection(editingId, {
-        name: formData.name,
-        description: formData.description
+        name: formData.name.trim(),
+        description: formData.description.trim(),
       });
       await loadSections();
       setEditingId(null);
@@ -216,19 +232,19 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
         <div className="space-y-4">
           {loading ? (
              <div className="text-center py-8">Loading sections...</div>
-          ) : sections.map((section) => (
+          ) : sections.map((section) => {
+            const isActive = section.active ?? section.enabled ?? true;
+            const displayName = section.name ?? section.label ?? section.key;
+            return (
             <div
               key={section.id}
-              className={`bg-card border border-border p-6 transition-colors ${!section.enabled && section.enabled !== undefined ? 'opacity-60' : ''}`}
+              className={`bg-card border border-border p-6 transition-colors ${!isActive ? 'opacity-60' : ''}`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-medium">{section.label}</h3>
-                    <span className="meta text-muted-foreground text-xs px-2 py-1 border border-border">
-                      {section.key}
-                    </span>
-                    {section.enabled === false ? (
+                    <h3 className="text-lg font-medium">{displayName}</h3>
+                    {!isActive ? (
                       <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded inline-flex items-center gap-1">
                         <CircleOff className="w-3 h-3" />
                         Inactive
@@ -253,16 +269,16 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
                   </button>
                   <button
                     onClick={() => handleToggle(section.id)}
-                    className={`p-2 transition-colors ${section.enabled === false ? 'hover:bg-green-100 text-green-700' : 'hover:bg-destructive hover:text-destructive-foreground'}`}
+                    className={`p-2 transition-colors ${!isActive ? 'hover:bg-green-100 text-green-700' : 'hover:bg-destructive hover:text-destructive-foreground'}`}
                     disabled={isAdding || editingId !== null}
-                    title={section.enabled === false ? "Activate" : "Deactivate (Soft Delete)"}
+                    title={!isActive ? "Activate" : "Deactivate (Soft Delete)"}
                   >
-                    {section.enabled === false ? <Power className="w-5 h-5" /> : <PowerOff className="w-5 h-5" />}
+                    {!isActive ? <Power className="w-5 h-5" /> : <PowerOff className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
 
         {/* Empty State */}

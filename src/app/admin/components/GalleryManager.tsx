@@ -5,6 +5,7 @@ import { Edit3, LogOut, Trash2, Plus, X, ChevronLeft, ChevronRight } from 'lucid
 import { useRouter } from 'next/navigation';
 import { getAdminMedia, uploadMediaByUrl, uploadMediaFile, updateMedia, deleteMedia, getMediaCategories, type MediaUploadDto, type MediaUpdateDto } from '@/lib/adminApiClient';
 import type { PublicMediaDto } from '@/lib/types';
+import Image from 'next/image';
 
 const IMAGES_PER_PAGE = 12;
 
@@ -361,9 +362,11 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
               {uploadMode === 'url' && newImage.url && (
                 <div>
                   <label className="block mb-2 text-sm font-medium">Preview</label>
-                  <img
+                  <Image
                     src={newImage.url}
                     alt="Preview"
+                    width={800}
+                    height={384}
                     className="w-full max-w-md h-48 object-cover border border-border"
                   />
                 </div>
@@ -371,9 +374,11 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
               {uploadMode === 'file' && filePreviewUrl && selectedFile?.type.startsWith('image/') && (
                 <div>
                   <label className="block mb-2 text-sm font-medium">Preview</label>
-                  <img
+                  <Image
                     src={filePreviewUrl}
                     alt="Preview"
+                    width={800}
+                    height={384}
                     className="w-full max-w-md h-48 object-cover border border-border"
                   />
                 </div>
@@ -422,9 +427,11 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
             <div key={image.id} className="bg-card border border-border overflow-hidden group">
               {/* Image */}
               <div className="relative">
-                <img
+                <Image
                   src={image.url}
                   alt={image.caption || 'Gallery image'}
+                  width={image.width ?? 800}
+                  height={image.height ?? 600}
                   className="w-full h-48 object-cover"
                 />
                 
