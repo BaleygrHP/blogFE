@@ -156,13 +156,13 @@ export function adminUpdatePost(postId: string, body: Record<string, unknown>) {
 
 export function adminPublishPost(postId: string) {
   return fetchJson<PostDto>(`/api/admin/posts/${postId}/publish`, undefined, {
-    method: "PATCH",
+    method: "POST",
   });
 }
 
 export function adminUnpublishPost(postId: string) {
   return fetchJson<PostDto>(`/api/admin/posts/${postId}/unpublish`, undefined, {
-    method: "PATCH",
+    method: "POST",
   });
 }
 
@@ -185,10 +185,13 @@ export function adminGetFrontPageItems() {
 }
 
 export function adminSetFeatured(postId: string) {
-  return fetchJson<unknown>("/api/admin/front-page/featured", undefined, {
-    method: "POST",
-    body: JSON.stringify({ postId }),
-  });
+  return fetchJson<unknown>(
+    `/api/admin/front-page/featured?postId=${encodeURIComponent(postId)}`,
+    undefined,
+    {
+      method: "POST",
+    }
+  );
 }
 
 export function adminUpsertCurated(body: Record<string, unknown>) {

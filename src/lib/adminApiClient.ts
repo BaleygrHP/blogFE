@@ -50,13 +50,13 @@ export interface AdminPostDto extends PostDto {
 }
 
 export async function getAdminPosts(params?: {
-    section?: SectionKey;
+    sectionId?: string;
     status?: "published" | "draft";
     page?: number;
     size?: number;
 }): Promise<PageResponse<AdminPostDto>> {
     const query = new URLSearchParams();
-    if (params?.section) query.append("section", params.section);
+    if (params?.sectionId) query.append("sectionId", params.sectionId);
     if (params?.status) query.append("status", params.status.toUpperCase());
     if (params?.page !== undefined) query.append("page", String(params.page));
     if (params?.size !== undefined) query.append("size", String(params.size));
@@ -144,6 +144,7 @@ export async function toggleSection(sectionId: string): Promise<SectionDto> {
 export interface MediaUploadDto {
     url: string;
     kind: MediaKind;
+    mimeType?: string;
     title?: string;
     alt?: string;
     caption?: string;

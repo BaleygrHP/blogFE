@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Edit3, LogOut, Trash2, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getAdminMedia, uploadMedia, updateMedia, deleteMedia, getMediaCategories, type MediaUploadDto, type MediaUpdateDto } from '@/lib/adminApiClient';
@@ -11,6 +11,23 @@ const IMAGES_PER_PAGE = 12;
 interface GalleryManagerProps {
   onNavigate?: (page: string) => void;
   onLogout?: () => void;
+}
+
+function inferMimeTypeFromUrl(url: string): string {
+  const lower = (url || "").toLowerCase();
+  const noQuery = lower.split("?")[0].split("#")[0];
+
+  if (noQuery.endsWith(".png")) return "image/png";
+  if (noQuery.endsWith(".gif")) return "image/gif";
+  if (noQuery.endsWith(".webp")) return "image/webp";
+  if (noQuery.endsWith(".avif")) return "image/avif";
+  if (noQuery.endsWith(".svg")) return "image/svg+xml";
+  if (noQuery.endsWith(".bmp")) return "image/bmp";
+  if (noQuery.endsWith(".tif") || noQuery.endsWith(".tiff")) return "image/tiff";
+  if (noQuery.endsWith(".jpg") || noQuery.endsWith(".jpeg")) return "image/jpeg";
+
+  // Most image CDNs (e.g. Unsplash) serve JPEG without file extension.
+  return "image/jpeg";
 }
 
 export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
@@ -36,6 +53,21 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
   });
 
   const [editData, setEditData] = useState<MediaUpdateDto>({});
+  const loadCategories = useCallback(async () => {
+    try {
+      const items = await getMediaCategories();
+      const normalized = Array.from(
+        new Set(
+          (items || [])
+            .map((c) => (c || "").trim())
+            .filter((c) => c.length > 0)
+        )
+      );
+      setCategories(normalized);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+    }
+  }, []);
 
   // Fetch images when page changes
   useEffect(() => {
@@ -69,12 +101,15 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
     }
 
     try {
+      const inferredMimeType = inferMimeTypeFromUrl(newImage.url);
       const mediaData: MediaUploadDto = {
         url: newImage.url,
         kind: 'IMAGE',
+        mimeType: inferredMimeType,
         title: newImage.title,
         caption: newImage.caption,
         location: newImage.location,
+        category: newImage.category,
       };
 
       await uploadMedia(mediaData);
@@ -97,6 +132,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
         location: '',
         title: '',
       });
+      await loadCategories();
 
       alert('Image added successfully!');
     } catch (error) {
@@ -159,6 +195,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
 
       setEditingId(null);
       setEditData({});
+      await loadCategories();
       alert('Image updated successfully!');
     } catch (error) {
       console.error("Failed to update image:", error);
@@ -167,8 +204,8 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
   };
 
   useEffect(() => {
-    getMediaCategories().then(setCategories).catch(err => console.error("Failed to load categories", err));
-  }, []);
+    loadCategories();
+  }, [loadCategories]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -262,17 +299,15 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
 
               {/* Category */}
               <div>
-                 <label className="block mb-2 text-sm font-medium">Category</label>
-                 <div className="flex gap-2">
-                   <select 
-                     className="w-full px-4 py-3 border border-input bg-background"
-                     value={newImage.category || ''}
-                     onChange={(e) => setNewImage({...newImage, category: e.target.value})}
-                   >
-                     <option value="">Select category...</option>
-                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                   </select> 
-                 </div>
+                <label className="block mb-2 text-sm font-medium">Category</label>
+                <input
+                  type="text"
+                  list="gallery-category-options"
+                  className="w-full px-4 py-3 border border-input bg-background"
+                  value={newImage.category || ''}
+                  onChange={(e) => setNewImage({ ...newImage, category: e.target.value })}
+                  placeholder="Type or pick a category"
+                />
               </div>
 
               {/* Preview */}
@@ -372,14 +407,14 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
                   </div>
                   <div>
                     <label className="block mb-1 text-xs font-medium">Category</label>
-                    <select
+                    <input
+                      type="text"
+                      list="gallery-category-options"
                       value={editData.category || ''}
                       onChange={(e) => setEditData({ ...editData, category: e.target.value })}
                       className="w-full px-3 py-2 text-sm border border-input bg-background"
-                    >
-                      <option value="">Select category...</option>
-                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                      placeholder="Type or pick a category"
+                    />
                   </div>
                   <div className="flex gap-2 pt-2">
                     <button
@@ -435,6 +470,11 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
             </button>
           </div>
         )}
+        <datalist id="gallery-category-options">
+          {categories.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
       </div>
     </div>
   );

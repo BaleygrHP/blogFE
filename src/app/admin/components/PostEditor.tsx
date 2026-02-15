@@ -24,6 +24,15 @@ interface PostEditorProps {
 
 export function PostEditor({ mode = "create", postId = null }: PostEditorProps) {
   const router = useRouter();
+  const normalizeSectionKey = (
+    value: unknown
+  ): "EDITORIAL" | "NOTES" | "DIARY" => {
+    const normalized = String(value ?? "").trim().toUpperCase();
+    if (normalized === "NOTES" || normalized === "DIARY" || normalized === "EDITORIAL") {
+      return normalized;
+    }
+    return "EDITORIAL";
+  };
 
   const [formData, setFormData] = useState<PostCreateDto>({
     title: "",
@@ -42,7 +51,10 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
   // Load sections
   useEffect(() => {
     getAdminSections()
-      .then(secs => setSections(secs.map(s => s.key)))
+      .then((secs) => {
+        const normalized = secs.map((s) => normalizeSectionKey(s.key));
+        setSections(Array.from(new Set(normalized)));
+      })
       .catch(() => setSections(["EDITORIAL", "NOTES", "DIARY"]));
   }, []);
 
@@ -56,7 +68,7 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
           setFormData({
             title: post.title,
             subtitle: post.subtitle || undefined,
-            section: post.section,
+            section: normalizeSectionKey(post.section),
             excerpt: post.excerpt || "",
             content: post.content || "",
             coverImageUrl: post.coverImageUrl || "",
@@ -189,7 +201,12 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
               <label className="block mb-2">Section</label>
               <select
                 value={formData.section}
-                onChange={(e) => setFormData((p) => ({ ...p, section: e.target.value as "EDITORIAL" | "NOTES" | "DIARY" }))}
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    section: normalizeSectionKey(e.target.value),
+                  }))
+                }
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
                 disabled={loading}
               >

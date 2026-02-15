@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Edit3, LogOut, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getAdminPosts, deletePost, getAdminSections, type AdminPostDto } from '@/lib/adminApiClient';
-import type { SectionKey } from '@/lib/types';
 
 interface PostsListProps {
   onNavigate?: (page: string) => void;
@@ -25,6 +24,7 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
   const [loading, setLoading] = useState(true);
   const [totalElements, setTotalElements] = useState(0);
   const [sections, setSections] = useState<string[]>(['All', 'EDITORIAL', 'NOTES', 'DIARY']);
+  const [sectionIdByKey, setSectionIdByKey] = useState<Record<string, string>>({});
 
   const statuses = ['All', 'published', 'draft'];
   
@@ -38,10 +38,21 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
   // Load sections
   useEffect(() => {
     getAdminSections()
-      .then(secs => setSections(['All', ...secs.map(s => s.key)]))
+      .then(secs => {
+        const map: Record<string, string> = {};
+        secs.forEach(s => {
+          if (s.key && s.id) {
+            map[s.key] = s.id;
+            map[s.key.toUpperCase()] = s.id;
+          }
+        });
+        setSectionIdByKey(map);
+        setSections(['All', ...secs.map(s => s.key)]);
+      })
       .catch((err) => {
         console.error("Failed to load sections:", err);
         // Fallback
+        setSectionIdByKey({});
         setSections(['All', 'EDITORIAL', 'NOTES', 'DIARY']);
       });
   }, []);
@@ -51,11 +62,12 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
     async function loadPosts() {
       try {
         setLoading(true);
-        const sectionParam = filterSection === 'All' ? undefined : filterSection.toUpperCase() as SectionKey;
+        const sectionKey = filterSection === 'All' ? undefined : filterSection;
+        const sectionId = sectionKey ? sectionIdByKey[sectionKey] : undefined;
         const statusParam = filterStatus === 'All' ? undefined : filterStatus as "published" | "draft";
         
         const res = await getAdminPosts({
-          section: sectionParam,
+          sectionId,
           status: statusParam,
           page: 0,
           size: 100, // Get all for now, can add pagination later
