@@ -32,44 +32,20 @@ export function ArticlePage({ slug , onBack }: ArticlePageProps) {
       </div>
     );
   }
-  // Mock full content for demo
-  const fullContent = `
-    <p>This is the beginning of the article. In a full implementation, this would contain the complete Markdown-rendered content.</p>
-    
-    <p>The quiet UI philosophy emphasizes clarity and focus. Every element serves the reading experience. Nothing competes with the text for attention.</p>
-    
-    <h2>The Text-First Approach</h2>
-    
-    <p>When you design text-first, you start with the assumption that people are here to read. Not to be entertained by animations, not to marvel at your design skills—just to read.</p>
-    
-    <p>This might seem limiting, but it's actually liberating. With fewer variables to consider, you can focus on the fundamentals: typography, spacing, hierarchy, and rhythm.</p>
-    
-    <blockquote>
-      "Good design is as little design as possible."
-      <br />— Dieter Rams
-    </blockquote>
-    
-    <h2>What This Means in Practice</h2>
-    
-    <p>In practice, quiet UI means making deliberate choices about what <em>not</em> to include. Every element should justify its existence. If it doesn't serve the reader's understanding or navigation, it probably shouldn't be there.</p>
-    
-    <p>This applies to everything from color choices (neutral, unobtrusive) to interaction patterns (simple, predictable) to content structure (clear, hierarchical).</p>
-    
-    <h3>Key Principles</h3>
-    
-    <ul>
-      <li>Prioritize readability over aesthetics</li>
-      <li>Use whitespace generously</li>
-      <li>Keep interactions minimal and predictable</li>
-      <li>Let content define the rhythm</li>
-    </ul>
-    
-    <h2>The Result</h2>
-    
-    <p>What you get is a reading experience that feels calm, focused, and respectful of the reader's time and attention. The design doesn't shout. It whispers—or better yet, it steps aside entirely and lets the words speak.</p>
-    
-    <p>This is what modern editorial design should be: not invisible, but transparent. Present enough to guide, absent enough not to distract.</p>
-  `;
+  const rawContent = (article.content ?? "").trim();
+  const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(rawContent);
+  const escapedContent = rawContent
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  const fullContent = rawContent
+    ? looksLikeHtml
+      ? rawContent
+      : escapedContent
+          .split(/\n{2,}/)
+          .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br />")}</p>`)
+          .join("")
+    : "<p>No content available.</p>";
 
   return (
     <div className="min-h-screen bg-background">
@@ -140,3 +116,4 @@ export function ArticlePage({ slug , onBack }: ArticlePageProps) {
     </div>
   );
 }
+

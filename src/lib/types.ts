@@ -34,6 +34,7 @@ export type PostDto = {
   subtitle?: string | null;
   excerpt?: string;
   content?: string;
+  contentMd?: string;
   contentHtml?: string;
   section: "EDITORIAL" | "NOTES" | "DIARY";
   publishedAt?: string | null;
