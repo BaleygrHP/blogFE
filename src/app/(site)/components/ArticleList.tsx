@@ -51,9 +51,7 @@ export function ArticleList({
               </div>
             )}
 
-            <div className="section-label text-muted-foreground mb-2">
-              {article.section}
-            </div>
+            <div className="section-label text-muted-foreground mb-2">{article.section}</div>
 
             <h4
               onClick={() => handleRead(article.slug)}
@@ -67,16 +65,14 @@ export function ArticleList({
             </div>
 
             {showExcerpt && article.subtitle && (
-              <p className="text-base leading-relaxed text-muted-foreground mb-3">
-                {article.subtitle}
-              </p>
+              <p className="text-base leading-relaxed text-muted-foreground mb-3">{article.subtitle}</p>
             )}
 
             <button
               onClick={() => handleRead(article.slug)}
               className="meta underline hover:text-foreground transition-colors"
             >
-              Read →
+              Đọc tiếp →
             </button>
           </article>
         ))}

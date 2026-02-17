@@ -72,14 +72,14 @@ function toPreviewFromPost(post: AdminPostDto) {
     section: {
       id: "",
       key: normalizeKey(section),
-      name: section || "Unknown",
+      name: section || "Không rõ",
     },
   };
 }
 
 function normalizeErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) return "Unknown error";
-  const raw = error.message || "Unknown error";
+  if (!(error instanceof Error)) return "Lỗi không xác định";
+  const raw = error.message || "Lỗi không xác định";
   const marker = ": {";
   const idx = raw.indexOf(marker);
   if (idx > -1) {
@@ -133,14 +133,14 @@ function SortableSupportingRow({ item, index, disabled, onRemove }: SortableSupp
         type="button"
         className="flex items-center justify-center p-2 border border-border hover:border-foreground disabled:opacity-40"
         disabled={disabled}
-        aria-label="Drag to reorder"
+        aria-label="Kéo để sắp xếp"
         {...attributes}
         {...listeners}
       >
         <GripVertical className="w-4 h-4" />
       </button>
       <div>
-        <div className="font-medium">{item.post?.title || "Untitled"}</div>
+        <div className="font-medium">{item.post?.title || "Chưa có tiêu đề"}</div>
         <div className="meta text-muted-foreground text-xs">{item.post?.slug || "-"}</div>
       </div>
       <div className="meta text-muted-foreground">{sectionName}</div>
@@ -151,7 +151,7 @@ function SortableSupportingRow({ item, index, disabled, onRemove }: SortableSupp
         disabled={disabled}
       >
         <X className="w-4 h-4" />
-        Remove
+        Gỡ
       </button>
       <div className="meta text-muted-foreground text-xs col-span-4">#{index + 1}</div>
     </div>
@@ -213,7 +213,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
         console.error("Failed to load front-page composition:", error);
         if (!cancelled) {
           setBanner({ type: "error", message: normalizeErrorMessage(error) });
-          alert("Could not load front page composition.");
+          alert("Không thể tải bố cục trang chủ.");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -231,19 +231,20 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
     const handle = setTimeout(async () => {
       try {
         setPickerLoading(true);
-        const res = await getAdminPosts({
+        const response = await getAdminPosts({
           status: "published",
           q: pickerQuery.trim() || undefined,
           page: pickerPage,
           size: PICKER_PAGE_SIZE,
         });
 
-        setPickerTotalPages(Math.max(1, res.totalPages));
-        setPickerPosts((prev) => (pickerPage === 0 ? res.content : [...prev, ...res.content]));
+        setPickerTotalPages(Math.max(1, response.totalPages));
+        setPickerPosts((prev) =>
+          pickerPage === 0 ? response.content : [...prev, ...response.content]
+        );
       } catch (error) {
         console.error("Failed to load story picker posts:", error);
-        const msg = normalizeErrorMessage(error);
-        setBanner({ type: "error", message: msg });
+        setBanner({ type: "error", message: normalizeErrorMessage(error) });
       } finally {
         setPickerLoading(false);
       }
@@ -279,7 +280,10 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
         } catch {
           // ignore refresh failures
         }
-        setBanner({ type: "error", message: "Layout changed elsewhere. Data has been refreshed." });
+        setBanner({
+          type: "error",
+          message: "Bố cục đã được thay đổi ở nơi khác. Dữ liệu đã được làm mới.",
+        });
       } else {
         const msg = normalizeErrorMessage(error);
         setBanner({ type: "error", message: msg });
@@ -303,7 +307,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
           .map((item, idx) => ({ ...item, position: idx + 1 })),
       }),
       (version) => setFeaturedPost(post.id, version),
-      "Lead updated"
+      "Đã cập nhật bài chính."
     );
   };
 
@@ -315,18 +319,24 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
         featured: null,
       }),
       (version) => removeFeaturedPost(version),
-      "Lead removed"
+      "Đã gỡ bài chính."
     );
   };
 
   const handleAddSupporting = async (post: AdminPostDto) => {
     if (!composition) return;
     if (composition.items.length >= SUPPORTING_MAX_ITEMS) {
-      setPickerBanner({ type: "error", message: `Supporting stories max is ${SUPPORTING_MAX_ITEMS}` });
+      setPickerBanner({
+        type: "error",
+        message: `Supporting stories tối đa ${SUPPORTING_MAX_ITEMS} bài.`,
+      });
       return;
     }
     if (featuredPostId === post.id) {
-      setPickerBanner({ type: "info", message: "Current lead cannot be added to supporting." });
+      setPickerBanner({
+        type: "info",
+        message: "Bài chính hiện tại không thể thêm vào supporting.",
+      });
       return;
     }
     if (supportingIds.has(post.id)) return;
@@ -351,7 +361,10 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
       await runMutation(
         (current) => ({
           ...current,
-          items: [...current.items, optimisticItem].map((item, idx) => ({ ...item, position: idx + 1 })),
+          items: [...current.items, optimisticItem].map((item, idx) => ({
+            ...item,
+            position: idx + 1,
+          })),
         }),
         (version) =>
           addCuratedPost(
@@ -362,7 +375,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
             },
             version
           ),
-        "Added to supporting"
+        "Đã thêm vào supporting."
       );
     } finally {
       setPendingAddPostIds((prev) => prev.filter((id) => id !== post.id));
@@ -375,11 +388,11 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
       (current) => ({
         ...current,
         items: current.items
-          .filter((x) => x.id !== item.id)
-          .map((x, idx) => ({ ...x, position: idx + 1 })),
+          .filter((existing) => existing.id !== item.id)
+          .map((existing, idx) => ({ ...existing, position: idx + 1 })),
       }),
       (version) => deleteFrontPageItem(item.id, version),
-      "Supporting story removed"
+      "Đã gỡ bài supporting."
     );
   };
 
@@ -401,7 +414,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
     await runMutation(
       (current) => ({ ...current, items: reordered }),
       (version) => reorderFrontPageItems(orderedIds, version),
-      "Order updated"
+      "Đã cập nhật thứ tự."
     );
   };
 
@@ -437,26 +450,31 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
               className="flex items-center gap-2 meta hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back
+              Quay lại
             </button>
-            <h1 className="text-xl font-medium">Front Page Composition</h1>
+            <h1 className="text-xl font-medium">Bố cục trang chủ</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className="meta text-muted-foreground">Status: {composition?.status || "..."}</span>
-            <span className="meta text-muted-foreground">Last updated: {lastUpdated}</span>
+            <span className="meta text-muted-foreground">Trạng thái: {composition?.status || "..."}</span>
+            <span className="meta text-muted-foreground">Cập nhật lúc: {lastUpdated}</span>
             <button
               type="button"
               onClick={() => window.open("/", "_blank")}
               className="px-3 py-2 border border-border hover:border-foreground transition-colors text-sm"
             >
-              Preview Front Page
+              Xem trang chủ
             </button>
             <button
               type="button"
-              onClick={() => setBanner({ type: "info", message: "Publish Layout is not enabled yet." })}
+              onClick={() =>
+                setBanner({
+                  type: "info",
+                  message: "Chức năng xuất bản bố cục chưa được bật.",
+                })
+              }
               className="px-3 py-2 bg-foreground text-background hover:opacity-90 transition-opacity text-sm"
             >
-              Publish Layout
+              Xuất bản bố cục
             </button>
           </div>
         </div>
@@ -481,7 +499,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h2 className="font-medium flex items-center gap-2">
               <Star className="w-4 h-4" />
-              Lead Story
+              Bài chính
             </h2>
             {composition?.featured && (
               <button
@@ -490,26 +508,26 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
                 disabled={loading || saving}
                 className="px-3 py-1 border border-border hover:border-foreground transition-colors text-sm disabled:opacity-40"
               >
-                Replace
+                Thay
               </button>
             )}
           </div>
 
           {!composition?.featured ? (
             <div className="p-6 text-center">
-              <p className="text-muted-foreground mb-4">No lead story selected.</p>
+              <p className="text-muted-foreground mb-4">Chưa chọn bài chính.</p>
               <button
                 type="button"
                 onClick={openPicker}
                 disabled={loading || saving}
                 className="px-4 py-2 border border-border hover:border-foreground transition-colors disabled:opacity-40"
               >
-                Select Lead Story
+                Chọn bài chính
               </button>
             </div>
           ) : (
             <div className="p-6 space-y-3">
-              <div className="meta text-muted-foreground">Current Lead</div>
+              <div className="meta text-muted-foreground">Bài chính hiện tại</div>
               <div className="text-xl font-medium">{composition.featured.title}</div>
               <div className="meta text-muted-foreground">{composition.featured.section?.name || "-"}</div>
               <div className="meta text-muted-foreground">Slug: {composition.featured.slug}</div>
@@ -520,7 +538,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
                   className="inline-flex items-center gap-1 px-3 py-2 border border-border hover:border-foreground transition-colors text-sm"
                 >
                   <Eye className="w-4 h-4" />
-                  View
+                  Xem
                 </button>
                 <button
                   type="button"
@@ -529,7 +547,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
                   className="inline-flex items-center gap-1 px-3 py-2 border border-border hover:border-destructive hover:text-destructive transition-colors text-sm disabled:opacity-40"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Remove
+                  Gỡ
                 </button>
               </div>
             </div>
@@ -540,7 +558,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h2 className="font-medium flex items-center gap-2">
               <Layout className="w-4 h-4" />
-              Supporting Stories
+              Bài hỗ trợ
             </h2>
             <button
               type="button"
@@ -549,14 +567,14 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
               className="inline-flex items-center gap-2 px-3 py-1 border border-border hover:border-foreground transition-colors text-sm disabled:opacity-40"
             >
               <Plus className="w-4 h-4" />
-              Add Story
+              Thêm bài
             </button>
           </div>
 
           {loading ? (
-            <div className="p-6 text-muted-foreground">Loading...</div>
+            <div className="p-6 text-muted-foreground">Đang tải...</div>
           ) : supportingItems.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground">No supporting stories yet.</div>
+            <div className="p-6 text-center text-muted-foreground">Chưa có bài supporting nào.</div>
           ) : (
             <div className="p-4 space-y-2">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -576,7 +594,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
                 </SortableContext>
               </DndContext>
               <div className="meta text-muted-foreground">
-                Drag handle to reorder. {supportingItems.length}/{SUPPORTING_MAX_ITEMS}
+                Kéo tay cầm để sắp xếp. {supportingItems.length}/{SUPPORTING_MAX_ITEMS}
               </div>
             </div>
           )}
@@ -596,7 +614,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
             }}
           >
             <div className="flex items-center justify-between p-4 border-b border-border" style={{ flexShrink: 0 }}>
-              <h3 className="font-medium">Add Story</h3>
+              <h3 className="font-medium">Thêm bài</h3>
               <button onClick={closePicker} className="p-2 hover:bg-secondary transition-colors">
                 <X className="w-4 h-4" />
               </button>
@@ -606,16 +624,22 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
               <div className="relative">
                 <Search
                   className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                  style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                  style={{
+                    position: "absolute",
+                    left: 16,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    pointerEvents: "none",
+                  }}
                 />
                 <input
                   type="text"
                   value={pickerQuery}
-                  onChange={(e) => {
-                    setPickerQuery(e.target.value);
+                  onChange={(event) => {
+                    setPickerQuery(event.target.value);
                     setPickerPage(0);
                   }}
-                  placeholder="Search published posts..."
+                  placeholder="Tìm bài đã xuất bản..."
                   className="w-full h-11 pl-12 pr-3 border border-border bg-background leading-5"
                   style={{ paddingLeft: 44, paddingRight: 12 }}
                 />
@@ -649,7 +673,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
                   <div key={post.id} className="border border-border p-3">
                     <div className="font-medium mb-1">{post.title}</div>
                     <div className="meta text-muted-foreground mb-3">
-                      {sectionLabelFromPost(post)} • {post.publishedAt || "-"}
+                      {sectionLabelFromPost(post)} · {post.publishedAt || "-"}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -658,7 +682,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
                         disabled={saving || isLead}
                         className="px-3 py-1 bg-foreground text-background text-sm disabled:opacity-40"
                       >
-                        {isLead ? "Current Lead ✓" : "Make Lead"}
+                        {isLead ? "Bài chính hiện tại ✓" : "Đặt làm bài chính"}
                       </button>
                       <button
                         type="button"
@@ -666,16 +690,20 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
                         disabled={saving || isAdded || isPendingAdd || supportingItems.length >= SUPPORTING_MAX_ITEMS}
                         className="px-3 py-1 border border-border hover:border-foreground text-sm disabled:opacity-40"
                       >
-                        {isPendingAdd ? "Adding..." : isAdded ? "Added ✓" : "Add to Supporting"}
+                        {isPendingAdd
+                          ? "Đang thêm..."
+                          : isAdded
+                          ? "Đã thêm ✓"
+                          : "Thêm vào supporting"}
                       </button>
                     </div>
                   </div>
                 );
               })}
 
-              {pickerLoading && <div className="meta text-muted-foreground">Loading...</div>}
+              {pickerLoading && <div className="meta text-muted-foreground">Đang tải...</div>}
               {!pickerLoading && pickerPosts.length === 0 && (
-                <div className="meta text-muted-foreground">No published posts found.</div>
+                <div className="meta text-muted-foreground">Không tìm thấy bài đã xuất bản.</div>
               )}
             </div>
 
@@ -685,14 +713,14 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
             >
               <button
                 type="button"
-                onClick={() => setPickerPage((p) => p + 1)}
+                onClick={() => setPickerPage((page) => page + 1)}
                 disabled={pickerLoading || pickerPage + 1 >= pickerTotalPages}
                 className="px-3 py-1 border border-border hover:border-foreground text-sm disabled:opacity-40"
               >
-                Load more
+                Tải thêm
               </button>
               <div className="meta text-muted-foreground">
-                Page {pickerPage + 1}/{pickerTotalPages}
+                Trang {pickerPage + 1}/{pickerTotalPages}
               </div>
             </div>
           </div>

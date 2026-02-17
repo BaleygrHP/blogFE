@@ -30,7 +30,6 @@ function getCurrentPageFromPath(pathname: string): SitePage {
     return seg1;
   }
 
-  // Any unknown first segment is treated as an article slug.
   return "article";
 }
 
@@ -47,17 +46,14 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Show header on public pages */}
       {currentPage !== "article" && (
         // Keep signature compatible with the original SPA Header (even if Header ignores props)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         <Header {...({ currentPage, onNavigate: handleNavigate } as any)} />
       )}
 
-      {/* Page Content */}
       {children}
 
-      {/* Footer */}
       {currentPage !== "article" && (
         <footer className="border-t border-border mt-24">
           <div className="max-w-6xl mx-auto px-6 py-12">
@@ -78,7 +74,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                   href="mailto:editor@dailychronicle.com"
                   className="meta text-muted-foreground hover:text-foreground underline transition-colors"
                 >
-                  Contact
+                  Liên hệ
                 </a>
               </div>
               <p className="meta text-muted-foreground">

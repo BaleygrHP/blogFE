@@ -1,11 +1,5 @@
 import { PostDto, Article } from "./types";
 
-const SECTION_LABEL: Record<string, string> = {
-  EDITORIAL: "Editorial",
-  NOTES: "Notes",
-  DIARY: "Diary",
-};
-
 export function mapPostToArticle(
   post: PostDto,
   options?: {
@@ -16,7 +10,7 @@ export function mapPostToArticle(
   return {
     id: post.id,
     slug: post.slug,
-    section: options?.sectionLabel ?? SECTION_LABEL[post.section] ?? post.section,
+    section: options?.sectionLabel ?? String(post.section ?? "").trim(),
     title: post.title,
     subtitle: (post.subtitle ?? "").trim(),
     author: "Test",

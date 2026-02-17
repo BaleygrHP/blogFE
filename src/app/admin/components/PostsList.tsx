@@ -1,92 +1,102 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { Edit3, LogOut, Eye, EyeOff, Trash2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { getAdminPosts, deletePost, getAdminSections, type AdminPostDto } from '@/lib/adminApiClient';
+import { useEffect, useState } from "react";
+import { Edit3, LogOut, Eye, EyeOff, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { getAdminPosts, deletePost, getAdminSections, type AdminPostDto } from "@/lib/adminApiClient";
+import { ALL_FILTER_VALUE, UI_TEXT } from "@/lib/i18n";
 
 interface PostsListProps {
   onNavigate?: (page: string) => void;
   onLogout?: () => void;
 }
 
+const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: ALL_FILTER_VALUE, label: UI_TEXT.filter.all },
+  { value: "published", label: "Đã xuất bản" },
+  { value: "draft", label: "Bản nháp" },
+];
+
 export function PostsList({ onNavigate, onLogout }: PostsListProps) {
   const router = useRouter();
   const nav = (page: string) =>
     onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
-  const logout = () => (onLogout ? onLogout() : router.push('/'));
-  
-  const [filterSection, setFilterSection] = useState<string>('All');
-  const [filterStatus, setFilterStatus] = useState<string>('All');
-  const [filterYear, setFilterYear] = useState<string>('All');
+  const logout = () => (onLogout ? onLogout() : router.push("/"));
+
+  const [filterSection, setFilterSection] = useState<string>(ALL_FILTER_VALUE);
+  const [filterStatus, setFilterStatus] = useState<string>(ALL_FILTER_VALUE);
+  const [filterYear, setFilterYear] = useState<string>(ALL_FILTER_VALUE);
   const [posts, setPosts] = useState<AdminPostDto[]>([]);
-  const [allPosts, setAllPosts] = useState<AdminPostDto[]>([]); // Store all fetched posts for Client-side filtering if needed
+  const [allPosts, setAllPosts] = useState<AdminPostDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalElements, setTotalElements] = useState(0);
-  const [sections, setSections] = useState<string[]>(['All', 'EDITORIAL', 'NOTES', 'DIARY']);
+  const [sections, setSections] = useState<string[]>(["EDITORIAL", "NOTES", "DIARY"]);
   const [sectionIdByKey, setSectionIdByKey] = useState<Record<string, string>>({});
 
-  const statuses = ['All', 'published', 'draft'];
-  
-  // Extract available years from posts
-  const availableYears = Array.from(new Set(
-    allPosts
-      .map(p => p.publishedAt ? new Date(p.publishedAt).getFullYear().toString() : null)
-      .filter(y => y !== null)
-  )).sort().reverse() as string[];
+  const availableYears = Array.from(
+    new Set(
+      allPosts
+        .map((post) =>
+          post.publishedAt ? new Date(post.publishedAt).getFullYear().toString() : null
+        )
+        .filter((year): year is string => year !== null)
+    )
+  ).sort((a, b) => Number(b) - Number(a));
 
-  // Load sections
   useEffect(() => {
     getAdminSections()
-      .then(secs => {
+      .then((allSections) => {
         const map: Record<string, string> = {};
-        secs.forEach(s => {
-          if (s.key && s.id) {
-            map[s.key] = s.id;
-            map[s.key.toUpperCase()] = s.id;
-          }
-        });
+        const nextSections: string[] = [];
+
+        for (const section of allSections) {
+          if (!section.key || !section.id) continue;
+          map[section.key] = section.id;
+          map[section.key.toUpperCase()] = section.id;
+          nextSections.push(section.key);
+        }
+
         setSectionIdByKey(map);
-        setSections(['All', ...secs.map(s => s.key)]);
+        setSections(nextSections.length > 0 ? nextSections : ["EDITORIAL", "NOTES", "DIARY"]);
       })
-      .catch((err) => {
-        console.error("Failed to load sections:", err);
-        // Fallback
+      .catch((errorValue) => {
+        console.error("Failed to load sections:", errorValue);
         setSectionIdByKey({});
-        setSections(['All', 'EDITORIAL', 'NOTES', 'DIARY']);
+        setSections(["EDITORIAL", "NOTES", "DIARY"]);
       });
   }, []);
 
-  // Fetch posts when filters change
   useEffect(() => {
     async function loadPosts() {
       try {
         setLoading(true);
-        const sectionKey = filterSection === 'All' ? undefined : filterSection;
+
+        const sectionKey = filterSection === ALL_FILTER_VALUE ? undefined : filterSection;
         const sectionId = sectionKey ? sectionIdByKey[sectionKey] : undefined;
-        const statusParam = filterStatus === 'All' ? undefined : filterStatus as "published" | "draft";
-        
-        const res = await getAdminPosts({
+        const statusParam =
+          filterStatus === ALL_FILTER_VALUE ? undefined : (filterStatus as "published" | "draft");
+
+        const response = await getAdminPosts({
           sectionId,
           status: statusParam,
           page: 0,
-          size: 100, // Get all for now, can add pagination later
+          size: 100,
         });
-        
-        let fetchedPosts = res.content;
+
+        let fetchedPosts = response.content ?? [];
         setAllPosts(fetchedPosts);
 
-        // Apply Year filter client-side
-        if (filterYear !== 'All') {
-          fetchedPosts = fetchedPosts.filter(p => 
-            p.publishedAt && new Date(p.publishedAt).getFullYear().toString() === filterYear
+        if (filterYear !== ALL_FILTER_VALUE) {
+          fetchedPosts = fetchedPosts.filter(
+            (post) =>
+              post.publishedAt && new Date(post.publishedAt).getFullYear().toString() === filterYear
           );
         }
-        
+
         setPosts(fetchedPosts);
         setTotalElements(fetchedPosts.length);
-      } catch (error) {
-        console.error("Failed to load posts:", error);
+      } catch (errorValue) {
+        console.error("Failed to load posts:", errorValue);
         setPosts([]);
       } finally {
         setLoading(false);
@@ -94,133 +104,120 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
     }
 
     loadPosts();
-  }, [filterSection, filterStatus, filterYear]);
+  }, [filterSection, filterStatus, filterYear, sectionIdByKey]);
 
   const handleDelete = async (postId: string, title: string) => {
-    if (!confirm(`Delete "${title}"? This action cannot be undone.`)) {
+    if (!confirm(`Xóa bài "${title}"? Hành động này không thể hoàn tác.`)) {
       return;
     }
 
     try {
       await deletePost(postId);
-      // Refresh posts list
-      setPosts(posts.filter(p => p.id !== postId));
-      setTotalElements(prev => prev - 1);
-    } catch (error) {
-      console.error("Failed to delete post:", error);
-      alert("Failed to delete post. Please try again.");
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      setTotalElements((prev) => Math.max(0, prev - 1));
+    } catch (errorValue) {
+      console.error("Failed to delete post:", errorValue);
+      alert("Không thể xóa bài viết. Vui lòng thử lại.");
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Admin Header */}
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <button
-              onClick={() => nav('dashboard')}
+              onClick={() => nav("dashboard")}
               className="flex items-center gap-3 hover:opacity-70 transition-opacity"
             >
               <Edit3 className="w-5 h-5" />
-              <span className="font-medium">Admin</span>
+              <span className="font-medium">Quản trị</span>
             </button>
             <span className="text-muted-foreground">/</span>
-            <span className="meta">Posts</span>
+            <span className="meta">Bài viết</span>
           </div>
           <button
             onClick={logout}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            Logout
+            Đăng xuất
           </button>
         </div>
       </header>
 
       <div className="max-w-6xl mx-auto px-6 py-12">
-        {/* Header with Actions */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl">All Posts</h1>
+          <h1 className="text-3xl">Tất cả bài viết</h1>
           <button
-            onClick={() => nav('posts/new')}
+            onClick={() => nav("posts/new")}
             className="px-6 py-3 bg-foreground text-background hover:opacity-90 transition-opacity"
           >
-            New Post
+            Bài viết mới
           </button>
         </div>
 
-        {/* Filters */}
         <div className="mb-8 flex flex-wrap gap-6">
-          {/* Section Filter */}
           <div>
-            <label className="section-label text-muted-foreground mb-3 block text-xs">
-              Section
-            </label>
+            <label className="section-label text-muted-foreground mb-3 block text-xs">Chuyên mục</label>
             <div className="flex gap-2">
-              {sections.map(section => (
+              {[ALL_FILTER_VALUE, ...sections].map((section) => (
                 <button
                   key={section}
                   onClick={() => setFilterSection(section)}
                   className={`px-4 py-2 border text-sm transition-colors ${
                     filterSection === section
-                      ? 'border-foreground bg-foreground text-background'
-                      : 'border-border hover:border-foreground'
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border hover:border-foreground"
                   }`}
                 >
-                  {section}
+                  {section === ALL_FILTER_VALUE ? UI_TEXT.filter.all : section}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Status Filter */}
           <div>
-            <label className="section-label text-muted-foreground mb-3 block text-xs">
-              Status
-            </label>
+            <label className="section-label text-muted-foreground mb-3 block text-xs">Trạng thái</label>
             <div className="flex gap-2">
-              {statuses.map(status => (
+              {STATUS_OPTIONS.map((status) => (
                 <button
-                  key={status}
-                  onClick={() => setFilterStatus(status)}
-                  className={`px-4 py-2 border text-sm transition-colors capitalize ${
-                    filterStatus === status
-                      ? 'border-foreground bg-foreground text-background'
-                      : 'border-border hover:border-foreground'
+                  key={status.value}
+                  onClick={() => setFilterStatus(status.value)}
+                  className={`px-4 py-2 border text-sm transition-colors ${
+                    filterStatus === status.value
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border hover:border-foreground"
                   }`}
                 >
-                  {status}
+                  {status.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Year Filter */}
           {availableYears.length > 0 && (
             <div>
-              <label className="section-label text-muted-foreground mb-3 block text-xs">
-                Year
-              </label>
+              <label className="section-label text-muted-foreground mb-3 block text-xs">Năm</label>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setFilterYear('All')}
+                  onClick={() => setFilterYear(ALL_FILTER_VALUE)}
                   className={`px-4 py-2 border text-sm transition-colors ${
-                    filterYear === 'All'
-                      ? 'border-foreground bg-foreground text-background'
-                      : 'border-border hover:border-foreground'
+                    filterYear === ALL_FILTER_VALUE
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border hover:border-foreground"
                   }`}
                 >
-                  All
+                  {UI_TEXT.filter.all}
                 </button>
-                {availableYears.map(year => (
+                {availableYears.map((year) => (
                   <button
                     key={year}
                     onClick={() => setFilterYear(year)}
                     className={`px-4 py-2 border text-sm transition-colors ${
                       filterYear === year
-                        ? 'border-foreground bg-foreground text-background'
-                        : 'border-border hover:border-foreground'
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border hover:border-foreground"
                     }`}
                   >
                     {year}
@@ -231,75 +228,78 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
           )}
         </div>
 
-        {/* Results Count */}
         <div className="mb-6 meta text-muted-foreground">
-          {loading ? "Loading..." : `${totalElements} ${totalElements === 1 ? 'post' : 'posts'}`}
+          {loading ? UI_TEXT.common.loading : `${totalElements} ${totalElements === 1 ? "bài viết" : "bài viết"}`}
         </div>
 
-        {/* Posts Table */}
         <div className="bg-card border border-border overflow-hidden">
           <table className="w-full">
             <thead className="border-b border-border bg-secondary">
               <tr>
-                <th className="text-left px-6 py-4 section-label text-xs">Title</th>
-                <th className="text-left px-6 py-4 section-label text-xs">Section</th>
-                <th className="text-left px-6 py-4 section-label text-xs">Status</th>
-                <th className="text-left px-6 py-4 section-label text-xs">Date</th>
-                <th className="text-right px-6 py-4 section-label text-xs">Actions</th>
+                <th className="text-left px-6 py-4 section-label text-xs">Tiêu đề</th>
+                <th className="text-left px-6 py-4 section-label text-xs">Chuyên mục</th>
+                <th className="text-left px-6 py-4 section-label text-xs">Trạng thái</th>
+                <th className="text-left px-6 py-4 section-label text-xs">Ngày</th>
+                <th className="text-right px-6 py-4 section-label text-xs">Hành động</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                    Loading posts...
+                    Đang tải danh sách bài viết...
                   </td>
                 </tr>
               ) : posts.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                    No posts found matching these filters.
+                    Không có bài viết phù hợp bộ lọc hiện tại.
                   </td>
                 </tr>
               ) : (
-                posts.map(post => (
-                  <tr key={post.id} className="border-b border-border last:border-0 hover:bg-secondary transition-colors">
+                posts.map((post) => (
+                  <tr
+                    key={post.id}
+                    className="border-b border-border last:border-0 hover:bg-secondary transition-colors"
+                  >
                     <td className="px-6 py-4">
                       <div className="font-medium mb-1">{post.title}</div>
                       {post.featured && (
-                        <span className="section-label text-xs text-muted-foreground">
-                          FEATURED
-                        </span>
+                        <span className="section-label text-xs text-muted-foreground">NỔI BẬT</span>
                       )}
                     </td>
                     <td className="px-6 py-4 meta">{post.section}</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 text-xs ${
-                        post.status === 'published' ? 'text-foreground' : 'text-muted-foreground'
-                      }`}>
-                        {post.status === 'published' ? (
-                          <><Eye className="w-3 h-3" /> Published</>
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs ${
+                          post.status === "published" ? "text-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        {post.status === "published" ? (
+                          <>
+                            <Eye className="w-3 h-3" /> Đã xuất bản
+                          </>
                         ) : (
-                          <><EyeOff className="w-3 h-3" /> Draft</>
+                          <>
+                            <EyeOff className="w-3 h-3" /> Bản nháp
+                          </>
                         )}
                       </span>
                     </td>
-                    <td className="px-6 py-4 meta text-muted-foreground">
-                      {post.publishedAt || "No date"}
-                    </td>
+                    <td className="px-6 py-4 meta text-muted-foreground">{post.publishedAt || "Chưa có ngày"}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => nav(`posts/${post.id}`)}
                           className="p-2 hover:bg-accent transition-colors"
-                          title="Edit"
+                          title="Chỉnh sửa"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(post.id, post.title)}
                           className="p-2 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                          title="Delete"
+                          title="Xóa"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

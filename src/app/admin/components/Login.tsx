@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
-import { Lock } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react";
+import { Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface LoginProps {
   onLogin?: () => void;
@@ -10,52 +10,47 @@ interface LoginProps {
 
 export function Login({ onLogin }: LoginProps) {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
-      if (!res.ok) {
-        throw new Error("Login failed");
+      if (!response.ok) {
+        throw new Error("Đăng nhập thất bại");
       }
 
-      // Success
       if (onLogin) {
         onLogin();
       } else {
-        router.push('/admin/dashboard');
+        router.push("/admin/dashboard");
       }
-    } catch (err) {
-      console.error(err);
-      setError('Invalid credentials');
+    } catch (errorValue) {
+      console.error(errorValue);
+      setError("Sai email hoặc mật khẩu.");
     }
   };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-6">
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-foreground text-background mb-4">
             <Lock className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl mb-2">Admin Login</h1>
-          <p className="meta text-muted-foreground">
-            The Daily Chronicle
-          </p>
+          <h1 className="text-2xl mb-2">Đăng nhập quản trị</h1>
+          <p className="meta text-muted-foreground">The Daily Chronicle</p>
         </div>
 
-        {/* Login Form */}
         <form onSubmit={handleSubmit} className="bg-card border border-border p-8">
           {error && (
             <div className="mb-6 p-3 bg-destructive/10 border border-destructive text-destructive text-sm">
@@ -64,46 +59,40 @@ export function Login({ onLogin }: LoginProps) {
           )}
 
           <div className="space-y-6">
-            {/* Email */}
             <div>
               <label className="block mb-2">Email</label>
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
                 placeholder="admin@mock.local"
                 required
               />
             </div>
 
-            {/* Password */}
             <div>
-              <label className="block mb-2">Password</label>
+              <label className="block mb-2">Mật khẩu</label>
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
                 placeholder="••••••••"
                 required
               />
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               className="w-full py-3 bg-foreground text-background hover:opacity-90 transition-opacity"
             >
-              Sign In
+              Đăng nhập
             </button>
           </div>
 
-          {/* Demo Credentials */}
           <div className="mt-6 pt-6 border-t border-border">
-            <p className="text-sm text-muted-foreground text-center">
-              Demo: admin@mock.local / mock
-            </p>
+            <p className="text-sm text-muted-foreground text-center">Tài khoản demo: admin@mock.local / mock</p>
           </div>
         </form>
       </div>

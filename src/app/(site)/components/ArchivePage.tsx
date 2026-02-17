@@ -4,58 +4,65 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getArchivePosts } from "@/lib/apiClient";
 import { mapPostToArticle } from "@/lib/adapters";
-import { PageResponse, PostDto, SectionKey } from "@/lib/types";
+import { type PageResponse, type PostDto, type SectionKey } from "@/lib/types";
+import { ALL_FILTER_VALUE, UI_TEXT } from "@/lib/i18n";
 
 interface ArchivePageProps {
   onReadArticle?: (slug: string) => void;
 }
 
-// map label UI -> sectionKey backend
-function toSectionKey(sectionLabel: string): SectionKey | undefined {
-  if (sectionLabel === "Editorial") return "EDITORIAL";
-  if (sectionLabel === "Notes") return "NOTES";
-  if (sectionLabel === "Diary") return "DIARY";
+type ArchiveItem = ReturnType<typeof mapPostToArticle> & {
+  sectionKey: string;
+  dayLabel: string;
+  monthYearLabel: string;
+  year: string;
+};
+
+function toSectionKey(filterValue: string): SectionKey | undefined {
+  if (filterValue === ALL_FILTER_VALUE) return undefined;
+  if (filterValue === "EDITORIAL") return "EDITORIAL";
+  if (filterValue === "NOTES") return "NOTES";
+  if (filterValue === "DIARY") return "DIARY";
   return undefined;
 }
 
-// format giống kiểu string date để logic split/includes hoạt động ổn
-// Ví dụ: "December 12 2025"  (cố tình không dùng dấu phẩy để split()[1] ra "12")
-function formatArchiveDate(iso?: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
+function mapToArchiveItem(post: PostDto): ArchiveItem {
+  const article = mapPostToArticle(post, { showCover: false });
+  const date = post.publishedAt ? new Date(post.publishedAt) : null;
+  const dayLabel = date ? String(date.getDate()).padStart(2, "0") : "--";
+  const monthYearLabel = date
+    ? `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`
+    : "Không rõ thời gian";
+  const year = date ? String(date.getFullYear()) : "";
 
-  const month = d.toLocaleString("en-US", { month: "long" }); // December
-  const day = String(d.getDate()); // 12
-  const year = String(d.getFullYear()); // 2025
-
-  return `${month} ${day} ${year}`;
+  return {
+    ...article,
+    section: String(post.section ?? "").trim() || article.section,
+    sectionKey: String(post.section ?? "").trim(),
+    date: date ? date.toLocaleDateString("vi-VN") : "",
+    dayLabel,
+    monthYearLabel,
+    year,
+  };
 }
 
 export function ArchivePage({ onReadArticle }: ArchivePageProps) {
   const router = useRouter();
   const handleRead = (slug: string) =>
     onReadArticle ? onReadArticle(slug) : router.push(`/${slug}`);
-  const [filterSection, setFilterSection] = useState<string>("All");
-  const [filterYear, setFilterYear] = useState<string>("All");
+
+  const [filterSection, setFilterSection] = useState<string>(ALL_FILTER_VALUE);
+  const [filterYear, setFilterYear] = useState<string>(ALL_FILTER_VALUE);
   const [yearOffset, setYearOffset] = useState(0);
-
-  const currentYear = new Date().getFullYear();
-  const sections = ["All", "Editorial", "Notes", "Diary"];
-  const yearsNumbers = [
-    currentYear - yearOffset,
-    currentYear - yearOffset - 1,
-    currentYear - yearOffset - 2,
-  ];
-
-  const canBack = yearOffset > 0;
-
-  // ====== DATA from API ======
   const [items, setItems] = useState<PostDto[]>([]);
 
-  const selectedYear =
-    filterYear === "All" ? new Date().getFullYear() : Number(filterYear);
-  const selectedSectionKey =
-    filterSection === "All" ? undefined : toSectionKey(filterSection);
+  const currentYear = new Date().getFullYear();
+  const sectionFilters = [ALL_FILTER_VALUE, "EDITORIAL", "NOTES", "DIARY"];
+  const yearsNumbers = [currentYear - yearOffset, currentYear - yearOffset - 1, currentYear - yearOffset - 2];
+  const canBack = yearOffset > 0;
+
+  const selectedYear = filterYear === ALL_FILTER_VALUE ? currentYear : Number(filterYear);
+  const selectedSectionKey = toSectionKey(filterSection);
 
   useEffect(() => {
     getArchivePosts(selectedYear, undefined, selectedSectionKey, 0, 500)
@@ -63,47 +70,32 @@ export function ArchivePage({ onReadArticle }: ArchivePageProps) {
       .catch(() => setItems([]));
   }, [selectedYear, selectedSectionKey]);
 
-  const allArticles = useMemo(() => {
-    return items.map((p) => {
-      const a = mapPostToArticle(p, { showCover: false });
-      return {
-        ...a,
-        date: formatArchiveDate(p.publishedAt),
-        section:
-          p.section === "EDITORIAL"
-            ? "Editorial"
-            : p.section === "NOTES"
-            ? "Notes"
-            : p.section === "DIARY"
-            ? "Diary"
-            : a.section,
-      };
-    });
-  }, [items]);
+  const allArticles = useMemo(() => items.map(mapToArchiveItem), [items]);
 
-  // ====== GIỮ NGUYÊN LOGIC FILTER ======
-  const filteredArticles = allArticles.filter((article) => {
-    const matchesSection =
-      filterSection === "All" || article.section === filterSection;
-    const matchesYear =
-      filterYear === "All" || article.date.includes(filterYear);
-    return matchesSection && matchesYear;
-  });
+  const filteredArticles = useMemo(
+    () =>
+      allArticles.filter((article) => {
+        const matchesSection =
+          filterSection === ALL_FILTER_VALUE || article.sectionKey === filterSection;
+        const matchesYear = filterYear === ALL_FILTER_VALUE || article.year === filterYear;
+        return matchesSection && matchesYear;
+      }),
+    [allArticles, filterSection, filterYear]
+  );
 
-  // ====== GIỮ NGUYÊN LOGIC GROUP ======
-  const groupedByMonth: { [key: string]: typeof allArticles } = {};
-  filteredArticles.forEach((article) => {
-    const monthYear = article.date.split(" ").slice(0, 2).join(" ");
-    if (!groupedByMonth[monthYear]) {
-      groupedByMonth[monthYear] = [];
+  const groupedByMonth: Record<string, ArchiveItem[]> = {};
+  for (const article of filteredArticles) {
+    if (!groupedByMonth[article.monthYearLabel]) {
+      groupedByMonth[article.monthYearLabel] = [];
     }
-    groupedByMonth[monthYear].push(article);
-  });
+    groupedByMonth[article.monthYearLabel].push(article);
+  }
+
   useEffect(() => {
-    if (filterYear !== "All") {
-      const y = Number(filterYear);
-      if (!yearsNumbers.includes(y)) {
-        setFilterYear("All");
+    if (filterYear !== ALL_FILTER_VALUE) {
+      const yearAsNumber = Number(filterYear);
+      if (!yearsNumbers.includes(yearAsNumber)) {
+        setFilterYear(ALL_FILTER_VALUE);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,23 +103,18 @@ export function ArchivePage({ onReadArticle }: ArchivePageProps) {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-12">
-      {/* Page Header */}
       <header className="mb-12 pb-8 border-b border-border">
-        <h1 className="mb-4">Archive</h1>
+        <h1 className="mb-4">Lưu trữ</h1>
         <p className="text-lg text-muted-foreground max-w-2xl">
-          Browse all published articles by section and date.
+          Duyệt các bài đã xuất bản theo chuyên mục và thời gian.
         </p>
       </header>
 
-      {/* Filters */}
       <div className="mb-12 flex flex-wrap gap-6">
-        {/* Section Filter */}
         <div>
-          <label className="section-label text-muted-foreground mb-3 block">
-            Section
-          </label>
+          <label className="section-label text-muted-foreground mb-3 block">Chuyên mục</label>
           <div className="flex gap-2">
-            {sections.map((section) => (
+            {sectionFilters.map((section) => (
               <button
                 key={section}
                 onClick={() => setFilterSection(section)}
@@ -137,32 +124,26 @@ export function ArchivePage({ onReadArticle }: ArchivePageProps) {
                     : "border-border hover:border-foreground"
                 }`}
               >
-                {section}
+                {section === ALL_FILTER_VALUE ? UI_TEXT.filter.all : section}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Year Filter */}
         <div>
-          <label className="section-label text-muted-foreground mb-3 block">
-            Year
-          </label>
-
+          <label className="section-label text-muted-foreground mb-3 block">Năm</label>
           <div className="flex gap-2">
-            {/* All */}
             <button
-              onClick={() => setFilterYear("All")}
+              onClick={() => setFilterYear(ALL_FILTER_VALUE)}
               className={`px-4 py-2 border transition-colors ${
-                filterYear === "All"
+                filterYear === ALL_FILTER_VALUE
                   ? "border-foreground bg-foreground text-background"
                   : "border-border hover:border-foreground"
               }`}
             >
-              All
+              {UI_TEXT.filter.all}
             </button>
 
-            {/* Back */}
             {canBack && (
               <button
                 onClick={() => setYearOffset((prev) => Math.max(0, prev - 1))}
@@ -172,25 +153,23 @@ export function ArchivePage({ onReadArticle }: ArchivePageProps) {
               </button>
             )}
 
-            {/* 3 years */}
-            {yearsNumbers.map((y) => {
-              const year = String(y);
+            {yearsNumbers.map((year) => {
+              const value = String(year);
               return (
                 <button
-                  key={year}
-                  onClick={() => setFilterYear(year)}
+                  key={value}
+                  onClick={() => setFilterYear(value)}
                   className={`px-4 py-2 border transition-colors ${
-                    filterYear === year
+                    filterYear === value
                       ? "border-foreground bg-foreground text-background"
                       : "border-border hover:border-foreground"
                   }`}
                 >
-                  {year}
+                  {value}
                 </button>
               );
             })}
 
-            {/* More */}
             <button
               onClick={() => setYearOffset((prev) => prev + 1)}
               className="px-4 py-2 border border-border text-muted-foreground hover:border-foreground transition-colors"
@@ -201,38 +180,23 @@ export function ArchivePage({ onReadArticle }: ArchivePageProps) {
         </div>
       </div>
 
-      {/* Results Count */}
       <div className="mb-8 text-muted-foreground">
-        {filteredArticles.length}{" "}
-        {filteredArticles.length === 1 ? "article" : "articles"} found
+        {filteredArticles.length} {filteredArticles.length === 1 ? "bài viết" : "bài viết"}
       </div>
 
-      {/* Grouped Articles */}
       <div className="space-y-12">
         {Object.entries(groupedByMonth).map(([monthYear, articles]) => (
           <div key={monthYear}>
-            {/* Month Header */}
-            <h2 className="text-xl mb-6 pb-2 border-b border-border">
-              {monthYear}
-            </h2>
+            <h2 className="text-xl mb-6 pb-2 border-b border-border">{monthYear}</h2>
 
-            {/* Articles in this month */}
             <div className="space-y-6">
               {articles.map((article) => (
                 <article key={article.id} className="flex gap-8 group">
-                  {/* Date */}
-                  <div className="meta text-muted-foreground w-24 flex-shrink-0">
-                    {article.date.split(" ")[1]}
-                  </div>
+                  <div className="meta text-muted-foreground w-24 flex-shrink-0">{article.dayLabel}</div>
 
-                  {/* Content */}
                   <div className="flex-1">
-                    {/* Section */}
-                    <div className="section-label text-muted-foreground mb-1">
-                      {article.section}
-                    </div>
+                    <div className="section-label text-muted-foreground mb-1">{article.section}</div>
 
-                    {/* Title */}
                     <h3
                       onClick={() => handleRead(article.slug)}
                       className="text-lg mb-1 cursor-pointer group-hover:opacity-70 transition-opacity"
@@ -240,10 +204,7 @@ export function ArchivePage({ onReadArticle }: ArchivePageProps) {
                       {article.title}
                     </h3>
 
-                    {/* Author */}
-                    <div className="meta text-muted-foreground">
-                      {article.author}
-                    </div>
+                    <div className="meta text-muted-foreground">{article.author}</div>
                   </div>
                 </article>
               ))}
@@ -252,10 +213,9 @@ export function ArchivePage({ onReadArticle }: ArchivePageProps) {
         ))}
       </div>
 
-      {/* Empty State */}
       {filteredArticles.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
-          No articles found matching these filters.
+          Không có bài viết nào phù hợp với bộ lọc hiện tại.
         </div>
       )}
     </div>

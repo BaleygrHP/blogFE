@@ -26,7 +26,9 @@ export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps
           {article.title}
         </h2>
 
-        <div className="meta mb-6">By {article.author} · {article.date}</div>
+        <div className="meta mb-6">
+          Bởi {article.author} · {article.date}
+        </div>
 
         {article.subtitle ? (
           <p className="text-lg leading-relaxed text-muted-foreground mb-6">{article.subtitle}</p>
@@ -36,7 +38,7 @@ export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps
           onClick={() => handleRead(article.slug)}
           className="meta underline hover:text-foreground transition-colors"
         >
-          Continue reading →
+          Tiếp tục đọc →
         </button>
       </div>
 

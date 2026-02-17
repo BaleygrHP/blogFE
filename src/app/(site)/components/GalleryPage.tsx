@@ -1,42 +1,43 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import Image from 'next/image';
-import { GalleryImage, PublicMediaDto } from '@/lib/types';
+import { useEffect, useMemo, useState } from "react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import Image from "next/image";
 import { getPublicGallery } from "@/lib/apiClient";
+import { GalleryImage, PublicMediaDto } from "@/lib/types";
+import { ALL_FILTER_VALUE, UI_TEXT } from "@/lib/i18n";
 
 const IMAGES_PER_PAGE = 12;
 
-function toGalleryImage(m: PublicMediaDto): GalleryImage {
+function toGalleryImage(media: PublicMediaDto): GalleryImage {
   return {
-    id: m.id,
-    url: m.url,
-    mimeType: (m.mimeType || '').toLowerCase(),
-    downloadUrl: `/api/public/media/${m.id}/download`,
-    caption: m.caption ?? m.title ?? m.alt ?? undefined,
-    location: m.location ?? undefined,
-    date: m.takenAt ?? m.createdDate ?? m.createdAt ?? "",
-    category: m.category?.trim() || "Uncategorized",
+    id: media.id,
+    url: media.url,
+    mimeType: (media.mimeType || "").toLowerCase(),
+    downloadUrl: `/api/public/media/${media.id}/download`,
+    caption: media.caption ?? media.title ?? media.alt ?? undefined,
+    location: media.location ?? undefined,
+    date: media.takenAt ?? media.createdDate ?? media.createdAt ?? "",
+    category: media.category?.trim() || "Chưa phân loại",
   };
 }
 
 function isImageMedia(media: GalleryImage): boolean {
-  return (media.mimeType || '').startsWith('image/');
+  return (media.mimeType || "").startsWith("image/");
 }
 
 function isVideoMedia(media: GalleryImage): boolean {
-  return (media.mimeType || '').startsWith('video/');
+  return (media.mimeType || "").startsWith("video/");
 }
 
 function isPdfMedia(media: GalleryImage): boolean {
-  return (media.mimeType || '') === 'application/pdf';
+  return (media.mimeType || "") === "application/pdf";
 }
 
 export function GalleryPage() {
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [currentPage, setCurrentPage] = useState(1); // UI 1-based
+  const [selectedCategory, setSelectedCategory] = useState<string>(ALL_FILTER_VALUE);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -45,8 +46,8 @@ export function GalleryPage() {
   const [error, setError] = useState<string | null>(null);
 
   const categories = useMemo(() => {
-    const unique = Array.from(new Set(images.map((i) => i.category).filter(Boolean)));
-    return ['All', ...unique];
+    const unique = Array.from(new Set(images.map((item) => item.category).filter(Boolean)));
+    return [ALL_FILTER_VALUE, ...unique];
   }, [images]);
 
   useEffect(() => {
@@ -60,13 +61,13 @@ export function GalleryPage() {
         const data = await getPublicGallery(currentPage - 1, IMAGES_PER_PAGE);
         if (cancelled) return;
 
-        setImages(data.content.map(toGalleryImage));
+        setImages((data.content ?? []).map(toGalleryImage));
         setTotalPages(Math.max(1, data.totalPages));
         setTotalElements(data.totalElements);
-      } catch (e: unknown) {
+      } catch (errorValue: unknown) {
         if (cancelled) return;
-        const msg = e instanceof Error ? e.message : "Failed to load gallery";
-        setError(msg);
+        const message = errorValue instanceof Error ? errorValue.message : "Không thể tải thư viện.";
+        setError(message);
         setImages([]);
         setTotalPages(1);
         setTotalElements(0);
@@ -82,9 +83,8 @@ export function GalleryPage() {
   }, [currentPage]);
 
   const filteredImages = useMemo(() => {
-    return selectedCategory === 'All'
-      ? images
-      : images.filter((img) => img.category === selectedCategory);
+    if (selectedCategory === ALL_FILTER_VALUE) return images;
+    return images.filter((image) => image.category === selectedCategory);
   }, [images, selectedCategory]);
 
   const handleCategoryChange = (category: string) => {
@@ -92,27 +92,29 @@ export function GalleryPage() {
     setCurrentPage(1);
   };
 
-  const navigateImage = (direction: 'prev' | 'next') => {
+  const navigateImage = (direction: "prev" | "next") => {
     if (!selectedImage) return;
-    const currentIndex = filteredImages.findIndex((img) => img.id === selectedImage.id);
+    const currentIndex = filteredImages.findIndex((image) => image.id === selectedImage.id);
     if (currentIndex < 0) return;
 
-    let newIndex: number;
-    if (direction === 'prev') {
-      newIndex = currentIndex > 0 ? currentIndex - 1 : filteredImages.length - 1;
-    } else {
-      newIndex = currentIndex < filteredImages.length - 1 ? currentIndex + 1 : 0;
-    }
+    const nextIndex =
+      direction === "prev"
+        ? currentIndex > 0
+          ? currentIndex - 1
+          : filteredImages.length - 1
+        : currentIndex < filteredImages.length - 1
+        ? currentIndex + 1
+        : 0;
 
-    setSelectedImage(filteredImages[newIndex]);
+    setSelectedImage(filteredImages[nextIndex]);
   };
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
       <header className="mb-12 pb-8 border-b border-border">
-        <h1 className="mb-4">Gallery</h1>
+        <h1 className="mb-4">Thư viện</h1>
         <p className="text-lg text-muted-foreground max-w-2xl">
-          Photographs and moments. A visual diary of places visited and scenes remembered.
+          Hình ảnh và khoảnh khắc, như một cuốn nhật ký bằng thị giác.
         </p>
       </header>
 
@@ -124,22 +126,22 @@ export function GalleryPage() {
               onClick={() => handleCategoryChange(category)}
               className={`px-5 py-2 transition-all ${
                 selectedCategory === category
-                  ? 'bg-foreground text-background'
-                  : 'border border-border hover:border-foreground'
+                  ? "bg-foreground text-background"
+                  : "border border-border hover:border-foreground"
               }`}
             >
-              {category}
+              {category === ALL_FILTER_VALUE ? UI_TEXT.filter.all : category}
             </button>
           ))}
         </div>
       </div>
 
-      {loading && <div className="mb-6 meta text-muted-foreground">Loading...</div>}
+      {loading && <div className="mb-6 meta text-muted-foreground">{UI_TEXT.common.loading}</div>}
       {error && <div className="mb-6 meta text-red-500">{error}</div>}
 
       <div className="mb-6 meta text-muted-foreground">
-        {totalElements} {totalElements === 1 ? 'item' : 'items'}
-        {selectedCategory !== 'All' && ` in ${selectedCategory}`}
+        {totalElements} {totalElements === 1 ? "mục" : "mục"}
+        {selectedCategory !== ALL_FILTER_VALUE && ` trong danh mục ${selectedCategory}`}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
@@ -149,7 +151,7 @@ export function GalleryPage() {
               {isImageMedia(image) ? (
                 <Image
                   src={image.url}
-                  alt={image.caption || 'Gallery image'}
+                  alt={image.caption || "Hình ảnh thư viện"}
                   width={1920}
                   height={1080}
                   className="w-full h-64 object-cover group-hover:opacity-90 transition-opacity"
@@ -158,24 +160,18 @@ export function GalleryPage() {
               ) : isVideoMedia(image) ? (
                 <video src={image.url} className="w-full h-64 object-cover" controls preload="metadata" />
               ) : isPdfMedia(image) ? (
-                <iframe src={image.url} title={image.caption || 'PDF preview'} className="w-full h-64 bg-white" />
+                <iframe src={image.url} title={image.caption || "Xem trước PDF"} className="w-full h-64 bg-white" />
               ) : (
                 <div className="w-full h-64 flex items-center justify-center text-sm text-muted-foreground">
-                  File preview unavailable
+                  Không thể xem trước tệp
                 </div>
               )}
             </div>
 
-            {image.caption && (
-              <h3 className="text-lg mb-1 group-hover:opacity-70 transition-opacity">
-                {image.caption}
-              </h3>
-            )}
+            {image.caption && <h3 className="text-lg mb-1 group-hover:opacity-70 transition-opacity">{image.caption}</h3>}
 
             <div className="meta text-muted-foreground">
-              <span className="inline-block px-2 py-0.5 border border-border mr-2 text-xs">
-                {image.category}
-              </span>
+              <span className="inline-block px-2 py-0.5 border border-border mr-2 text-xs">{image.category}</span>
               {image.location && <span>{image.location} · </span>}
               {image.date}
             </div>
@@ -186,7 +182,7 @@ export function GalleryPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-4">
           <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
             disabled={currentPage === 1}
             className="px-4 py-2 border border-border hover:border-foreground disabled:opacity-30 disabled:hover:border-border transition-colors"
           >
@@ -194,14 +190,14 @@ export function GalleryPage() {
           </button>
 
           <div className="flex items-center gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
                 className={`w-10 h-10 flex items-center justify-center transition-all ${
                   currentPage === page
-                    ? 'bg-foreground text-background'
-                    : 'border border-border hover:border-foreground'
+                    ? "bg-foreground text-background"
+                    : "border border-border hover:border-foreground"
                 }`}
               >
                 {page}
@@ -210,7 +206,7 @@ export function GalleryPage() {
           </div>
 
           <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
             disabled={currentPage === totalPages}
             className="px-4 py-2 border border-border hover:border-foreground disabled:opacity-30 disabled:hover:border-border transition-colors"
           >
@@ -232,9 +228,9 @@ export function GalleryPage() {
           </button>
 
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigateImage('prev');
+            onClick={(event) => {
+              event.stopPropagation();
+              navigateImage("prev");
             }}
             className="absolute left-6 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center hover:bg-secondary transition-colors"
           >
@@ -242,9 +238,9 @@ export function GalleryPage() {
           </button>
 
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigateImage('next');
+            onClick={(event) => {
+              event.stopPropagation();
+              navigateImage("next");
             }}
             className="absolute right-6 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center hover:bg-secondary transition-colors"
           >
@@ -256,11 +252,11 @@ export function GalleryPage() {
               {isImageMedia(selectedImage) ? (
                 <Image
                   src={selectedImage.url}
-                  alt={selectedImage.caption || 'Gallery image'}
+                  alt={selectedImage.caption || "Hình ảnh thư viện"}
                   width={1920}
                   height={1080}
                   className="w-full max-h-[70vh] object-contain"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
                 />
               ) : isVideoMedia(selectedImage) ? (
                 <video
@@ -268,37 +264,35 @@ export function GalleryPage() {
                   className="w-full max-h-[70vh]"
                   controls
                   autoPlay
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
                 />
               ) : isPdfMedia(selectedImage) ? (
                 <iframe
                   src={selectedImage.url}
                   className="w-full h-[70vh] bg-white"
-                  title={selectedImage.caption || 'PDF preview'}
-                  onClick={(e) => e.stopPropagation()}
+                  title={selectedImage.caption || "Xem trước PDF"}
+                  onClick={(event) => event.stopPropagation()}
                 />
               ) : (
                 <div className="w-full h-[40vh] flex flex-col items-center justify-center gap-4 border border-border">
-                  <div className="text-muted-foreground">Preview unavailable</div>
+                  <div className="text-muted-foreground">Không thể xem trước</div>
                   {selectedImage.downloadUrl && (
                     <a
                       href={selectedImage.downloadUrl}
                       className="px-4 py-2 border border-border hover:border-foreground"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
                     >
-                      Download file
+                      Tải tệp về máy
                     </a>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center" onClick={(event) => event.stopPropagation()}>
               {selectedImage.caption && <h2 className="text-2xl mb-2">{selectedImage.caption}</h2>}
               <div className="meta text-muted-foreground">
-                <span className="inline-block px-2 py-1 border border-border mr-2">
-                  {selectedImage.category}
-                </span>
+                <span className="inline-block px-2 py-1 border border-border mr-2">{selectedImage.category}</span>
                 {selectedImage.location && <span>{selectedImage.location} · </span>}
                 {selectedImage.date}
               </div>

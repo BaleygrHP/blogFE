@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getFrontPage } from "@/lib/apiClient";
-import type { FrontPageResponse } from "@/lib/types";
 import { mapPostToArticle } from "@/lib/adapters";
+import type { FrontPageResponse, PostListItem } from "@/lib/types";
+import { UI_TEXT } from "@/lib/i18n";
 import { FeaturedArticle } from "./FeaturedArticle";
 import { ArticleList } from "./ArticleList";
 import { DiaryList } from "./DiaryList";
-import { useRouter } from "next/navigation";
 
 const EMPTY: FrontPageResponse = {
   featured: null,
@@ -21,6 +22,21 @@ const EMPTY: FrontPageResponse = {
 type FrontPageProps = {
   onReadArticle?: (slug: string) => void;
 };
+
+function dedupeSupportingItems(items: PostListItem[], featuredId?: string | null): PostListItem[] {
+  const unique: PostListItem[] = [];
+  const seen = new Set<string>();
+
+  for (const item of items) {
+    if (!item?.id) continue;
+    if (featuredId && item.id === featuredId) continue;
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    unique.push(item);
+  }
+
+  return unique;
+}
 
 export function FrontPage({ onReadArticle }: FrontPageProps) {
   const router = useRouter();
@@ -45,80 +61,67 @@ export function FrontPage({ onReadArticle }: FrontPageProps) {
     ? mapPostToArticle(data.featured, { showCover: true })
     : null;
 
-  // Latest: list chung, thường không cần thumbnail (tuỳ UI bạn)
-  const latestArticles = data.latest.map((p) =>
-    mapPostToArticle(p, { showCover: false })
+  const latestArticles = data.latest.map((post) => mapPostToArticle(post, { showCover: false }));
+
+  const supportingPosts = useMemo(
+    () => dedupeSupportingItems(data.curated, data.featured?.id ?? null),
+    [data.curated, data.featured?.id]
+  );
+  const supportingArticles = supportingPosts.map((post) => mapPostToArticle(post, { showCover: false }));
+
+  const editorialArticles = data.editorialBlock.map((post) =>
+    mapPostToArticle(post, { showCover: true })
   );
 
-  // Editorial block: text-first
-  const editorialArticles = data.editorialBlock.map((p) =>
-    mapPostToArticle(p, { showCover: false })
-  );
+  const notesArticles = data.notesBlock.map((post) => mapPostToArticle(post, { showCover: true }));
 
-  // Notes picks
-  const notesArticles = data.notesBlock.map((p) =>
-    mapPostToArticle(p, { showCover: true })
-  );
-
-  // Diary picks: gọn, không cover
-  const diaryArticles = data.diaryBlock.map((p) =>
-    mapPostToArticle(p, { showCover: false })
-  );
+  const diaryArticles = data.diaryBlock.map((post) => mapPostToArticle(post, { showCover: false }));
 
   const handleRead = (slug: string) => {
     if (onReadArticle) return onReadArticle(slug);
     router.push(`/${slug}`);
   };
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
-      {/* Featured Article */}
-      {featuredArticle && (
-        <FeaturedArticle article={featuredArticle} onReadArticle={handleRead} />
-      )}
+      {featuredArticle && <FeaturedArticle article={featuredArticle} onReadArticle={handleRead} />}
 
-      {/* Latest */}
       <ArticleList
-        title="Mới nhất"
+        title={UI_TEXT.frontPage.latest}
         articles={latestArticles}
-        showExcerpt={true}
+        showExcerpt
         columns={2}
         onReadArticle={handleRead}
       />
 
       <ArticleList
-        title="Nên đọc"
-        articles={editorialArticles} // curate
+        title={UI_TEXT.frontPage.shouldRead}
+        articles={supportingArticles}
         showExcerpt={false}
         columns={1}
         onReadArticle={handleRead}
       />
 
-      {data.editorialBlock.length > 0 && (
+      {editorialArticles.length > 0 && (
         <ArticleList
-          title="Editorial"
-          articles={notesArticles}
-          showExcerpt={true}
+          title={UI_TEXT.frontPage.editorial}
+          articles={editorialArticles}
+          showExcerpt
           columns={2}
           onReadArticle={handleRead}
         />
       )}
 
-      {/* Notes */}
       <ArticleList
-        title="Notes"
-        articles={data.notesBlock.map((p) =>
-          mapPostToArticle(p, { showCover: true })
-        )}
-        showExcerpt={true}
-        showThumbnail={true}
+        title={UI_TEXT.frontPage.notes}
+        articles={notesArticles}
+        showExcerpt
+        showThumbnail
         columns={3}
         onReadArticle={handleRead}
       />
 
-      {/* Diary */}
-      {data.diaryBlock.length > 0 && (
-        <DiaryList entries={diaryArticles} onReadEntry={handleRead} />
-      )}
+      {data.diaryBlock.length > 0 && <DiaryList entries={diaryArticles} onReadEntry={handleRead} />}
     </div>
   );
 }

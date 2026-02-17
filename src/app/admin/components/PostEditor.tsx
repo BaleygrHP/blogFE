@@ -4,18 +4,16 @@ import { useEffect, useState } from "react";
 import { Eye, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { 
-  getAdminPostById, 
-  createPost, 
+import {
+  getAdminPostById,
+  createPost,
   updatePost,
   publishPost,
   unpublishPost,
   getAdminSections,
   type AdminPostDto,
-  type PostCreateDto 
+  type PostCreateDto,
 } from "@/lib/adminApiClient";
-
-// type PostStatus = "published" | "draft";
 
 interface PostEditorProps {
   mode?: "create" | "edit";
@@ -24,9 +22,8 @@ interface PostEditorProps {
 
 export function PostEditor({ mode = "create", postId = null }: PostEditorProps) {
   const router = useRouter();
-  const normalizeSectionKey = (
-    value: unknown
-  ): "EDITORIAL" | "NOTES" | "DIARY" => {
+
+  const normalizeSectionKey = (value: unknown): "EDITORIAL" | "NOTES" | "DIARY" => {
     const normalized = String(value ?? "").trim().toUpperCase();
     if (normalized === "NOTES" || normalized === "DIARY" || normalized === "EDITORIAL") {
       return normalized;
@@ -42,28 +39,25 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
     coverImageUrl: "",
     slug: "",
   });
-
   const [sections, setSections] = useState<string[]>(["EDITORIAL", "NOTES", "DIARY"]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentPost, setCurrentPost] = useState<AdminPostDto | null>(null);
 
-  // Load sections
   useEffect(() => {
     getAdminSections()
-      .then((secs) => {
-        const normalized = secs.map((s) => normalizeSectionKey(s.key));
+      .then((allSections) => {
+        const normalized = allSections.map((section) => normalizeSectionKey(section.key));
         setSections(Array.from(new Set(normalized)));
       })
       .catch(() => setSections(["EDITORIAL", "NOTES", "DIARY"]));
   }, []);
 
-  // Load existing post in edit mode
   useEffect(() => {
     if (mode === "edit" && postId) {
       setLoading(true);
       getAdminPostById(postId)
-        .then(post => {
+        .then((post) => {
           setCurrentPost(post);
           setFormData({
             title: post.title,
@@ -75,9 +69,9 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
             slug: post.slug,
           });
         })
-        .catch(err => {
-          console.error("Failed to load post:", err);
-          alert("Failed to load post");
+        .catch((errorValue) => {
+          console.error("Failed to load post:", errorValue);
+          alert("Không thể tải bài viết.");
           router.push("/admin/posts");
         })
         .finally(() => setLoading(false));
@@ -100,7 +94,7 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
 
   const handleSave = async (shouldPublish: boolean) => {
     if (!formData.title.trim()) {
-      alert("Please enter a title");
+      alert("Vui lòng nhập tiêu đề.");
       return;
     }
 
@@ -108,33 +102,28 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
       setSaving(true);
 
       if (mode === "create") {
-        // Create new post
         const newPost = await createPost(formData);
-        
-        // Publish if requested
         if (shouldPublish) {
           await publishPost(newPost.id);
         }
 
-        alert(`Post ${shouldPublish ? "published" : "saved as draft"} successfully!`);
+        alert(shouldPublish ? "Đã xuất bản bài viết thành công." : "Đã lưu bài viết dạng nháp.");
         router.push("/admin/posts");
       } else if (mode === "edit" && postId) {
-        // Update existing post
         await updatePost(postId, { ...formData, id: postId });
 
-        // Handle publish/unpublish
         if (shouldPublish && currentPost?.status !== "published") {
           await publishPost(postId);
         } else if (!shouldPublish && currentPost?.status === "published") {
           await unpublishPost(postId);
         }
 
-        alert(`Post ${shouldPublish ? "published" : "saved"} successfully!`);
+        alert(shouldPublish ? "Đã xuất bản bài viết thành công." : "Đã cập nhật bài viết.");
         router.push("/admin/posts");
       }
-    } catch (error) {
-      console.error("Failed to save post:", error);
-      alert("Failed to save post. Please try again.");
+    } catch (errorValue) {
+      console.error("Failed to save post:", errorValue);
+      alert("Không thể lưu bài viết. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -142,7 +131,6 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Editor Header */}
       <header className="border-b border-border bg-card sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -151,31 +139,31 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
               className="flex items-center gap-2 meta hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back
+              Quay lại
             </button>
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => alert("Preview (demo)")}
+                onClick={() => alert("Xem trước (demo)")}
                 className="flex items-center gap-2 px-4 py-2 border border-border hover:border-foreground transition-colors"
                 disabled={saving}
               >
                 <Eye className="w-4 h-4" />
-                Preview
+                Xem trước
               </button>
               <button
                 onClick={() => handleSave(false)}
                 className="px-4 py-2 border border-border hover:border-foreground transition-colors disabled:opacity-50"
                 disabled={saving || loading}
               >
-                {saving ? "Saving..." : "Save draft"}
+                {saving ? "Đang lưu..." : "Lưu nháp"}
               </button>
               <button
                 onClick={() => handleSave(true)}
                 className="px-4 py-2 bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-50"
                 disabled={saving || loading}
               >
-                {saving ? "Publishing..." : "Publish"}
+                {saving ? "Đang xuất bản..." : "Xuất bản"}
               </button>
             </div>
           </div>
@@ -183,86 +171,86 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
       </header>
 
       <div className="max-w-4xl mx-auto px-6 py-10">
-        <h1 className="text-2xl mb-6">{mode === "edit" ? "Edit post" : "New post"}</h1>
+        <h1 className="text-2xl mb-6">{mode === "edit" ? "Chỉnh sửa bài viết" : "Bài viết mới"}</h1>
 
         <div className="space-y-6">
           <div>
-            <label className="block mb-2">Title</label>
+            <label className="block mb-2">Tiêu đề</label>
             <input
               value={formData.title}
-              onChange={(e) => handleTitleChange(e.target.value)}
+              onChange={(event) => handleTitleChange(event.target.value)}
               className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-              placeholder="Post title"
+              placeholder="Tiêu đề bài viết"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block mb-2">Section</label>
+              <label className="block mb-2">Chuyên mục</label>
               <select
                 value={formData.section}
-                onChange={(e) =>
-                  setFormData((p) => ({
-                    ...p,
-                    section: normalizeSectionKey(e.target.value),
+                onChange={(event) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    section: normalizeSectionKey(event.target.value),
                   }))
                 }
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
                 disabled={loading}
               >
-                <option value="">Select…</option>
-                {sections.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                <option value="">Chọn...</option>
+                {sections.map((section) => (
+                  <option key={section} value={section}>
+                    {section}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block mb-2">Subtitle (optional)</label>
+              <label className="block mb-2">Tiêu đề phụ (tùy chọn)</label>
               <input
                 value={formData.subtitle || ""}
-                onChange={(e) => setFormData((p) => ({ ...p, subtitle: e.target.value }))}
+                onChange={(event) => setFormData((prev) => ({ ...prev, subtitle: event.target.value }))}
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-                placeholder="Subtitle"
+                placeholder="Tiêu đề phụ"
                 disabled={loading}
               />
             </div>
           </div>
 
           <div>
-            <label className="block mb-2">Excerpt</label>
+            <label className="block mb-2">Tóm tắt</label>
             <textarea
               value={formData.excerpt}
-              onChange={(e) => setFormData((p) => ({ ...p, excerpt: e.target.value }))}
+              onChange={(event) => setFormData((prev) => ({ ...prev, excerpt: event.target.value }))}
               className="w-full min-h-[100px] px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-              placeholder="Short summary..."
+              placeholder="Tóm tắt ngắn..."
             />
           </div>
 
           <div>
-            <label className="block mb-2">Cover image URL</label>
+            <label className="block mb-2">URL ảnh bìa</label>
             <input
               value={formData.coverImageUrl || ""}
-              onChange={(e) => setFormData((p) => ({ ...p, coverImageUrl: e.target.value }))}
+              onChange={(event) => setFormData((prev) => ({ ...prev, coverImageUrl: event.target.value }))}
               className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
               placeholder="https://..."
               disabled={loading}
             />
             {formData.coverImageUrl ? (
               <div className="mt-4 border border-border p-2">
-                <Image src={formData.coverImageUrl} alt="Cover" width={1200} height={630} />
+                <Image src={formData.coverImageUrl} alt="Ảnh bìa" width={1200} height={630} />
               </div>
             ) : null}
           </div>
 
           <div>
-            <label className="block mb-2">Content</label>
+            <label className="block mb-2">Nội dung</label>
             <textarea
               value={formData.content}
-              onChange={(e) => setFormData((p) => ({ ...p, content: e.target.value }))}
+              onChange={(event) => setFormData((prev) => ({ ...prev, content: event.target.value }))}
               className="w-full min-h-[260px] px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-              placeholder="Write here..."
+              placeholder="Viết nội dung tại đây..."
             />
           </div>
         </div>
