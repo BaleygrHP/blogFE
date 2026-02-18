@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 /**
  * Next.js proxy (previously middleware) protecting /admin/* routes,
  * except /admin/login.
- * Redirects to /admin/login if no actorUserId cookie is present.
+ * Redirects to /admin/login if no auth session cookie is present.
  */
 export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
@@ -16,8 +16,9 @@ export function proxy(request: NextRequest) {
 
     // Protect all /admin/* routes
     if (pathname.startsWith('/admin')) {
-        const actor = request.cookies.get('actorUserId')?.value;
-        if (!actor) {
+        const access = request.cookies.get('admin_at')?.value;
+        const refresh = request.cookies.get('admin_rt')?.value;
+        if (!access && !refresh) {
             const loginUrl = new URL('/admin/login', request.url);
             return NextResponse.redirect(loginUrl);
         }

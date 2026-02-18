@@ -2,18 +2,18 @@ export function AboutPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
       <header className="mb-12 pb-8 border-b border-border">
-        <h1 className="mb-4">Giới thiệu</h1>
+        <h1 className="mb-4">Giới thiệu(About)</h1>
       </header>
 
       <div className="prose">
         <p>
-          <strong>The Daily Chronicle</strong> là một tòa soạn cá nhân, nơi mình suy nghĩ về thiết kế,
-          công nghệ và cách làm việc có chiều sâu.
+          <strong>The Daily Chronicle</strong> là một blog cá nhân, nơi mình suy nghĩ về thiết kế,
+          công nghệ và cách làm việc. Nơi mà thích chửi thề cũng chả có ai quan tâm.
         </p>
-
         <p>
-          Trang này theo tinh thần giao diện tĩnh lặng: ưu tiên văn bản, giảm xao nhãng, và tôn trọng sự tập
-          trung của người đọc. Thiết kế không cần phải vô hình, nhưng cũng không nên lấn át nội dung.
+          Trang này theo tinh thần viết cái quần què gì cũng được. Vì ngoài thằng chủ của cái web này thì còn lại cũng chả có ma nào vào.
+          Cũng chính vì điều đó đây là nơi bay bổng nhất mà tôi - anh Hưng bay bổng tạo ra nó để giải stress
+
         </p>
 
         <h2>Cấu trúc</h2>
@@ -21,18 +21,15 @@ export function AboutPage() {
         <p>Nội dung được tổ chức thành ba mảng chính:</p>
 
         <p>
-          <strong>EDITORIAL</strong> gồm các bài nêu quan điểm và bình luận. Đây là góc nhìn cá nhân, không phải
-          chỉ dẫn bắt buộc.
+          <strong>EDITORIAL</strong> là nơi chứa những cách suy nghĩ, document về trước khi phát triển 1 cái trò con bò nào đó mà chủ blog nghĩ ra
         </p>
 
         <p>
-          <strong>NOTES</strong> là các bài đào sâu công cụ, kỹ thuật và thực hành. Có cấu trúc hơn nhật ký,
-          nhưng ít thiên về tranh luận hơn biên tập.
+          <strong>NOTES</strong> là các bài viết về những lưu ý, những thất bại trong quá trình phát triển. Phát triển gì thì không biết 
         </p>
 
         <p>
-          <strong>DIARY</strong> là những ghi chép ngắn và riêng tư. Ý tưởng đang hình thành, quan sát vụn, và
-          những suy nghĩ còn dang dở.
+          <strong>DIARY</strong> là những ghi chép ngắn và riêng tư. Ví dụ à? Nhật kí phát triển phần mềm hoặc táo bạo hơn thì chúng ta có Nhật kí con bạc này
         </p>
 
         <h2>Nguyên tắc</h2>
@@ -49,14 +46,14 @@ export function AboutPage() {
         <h2>Liên hệ</h2>
 
         <p>
-          Nếu bạn muốn trao đổi, góp ý hoặc chỉ đơn giản là chào nhau, hãy gửi email tới{" "}
+          Nếu bạn muốn trao đổi, góp ý hoặc chỉ đơn giản là chào nhau, hãy gửi email tới {" "}
           <a
-            href="mailto:editor@dailychronicle.com"
+            href="mailto:phamngochung3032001@gmail.com"
             className="underline hover:text-muted-foreground transition-colors"
           >
-            editor@dailychronicle.com
+            phamngochung3032001@gmail.com
           </a>
-          .
+          . Tôi cũng không check mail đâu nhưng mà được cái UI có cái chỗ này cho vui. Chứ design xong không biết ghi gì ở đây
         </p>
 
         <div className="mt-16 pt-8 border-t border-border text-center">

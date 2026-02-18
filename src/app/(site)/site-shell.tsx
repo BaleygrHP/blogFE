@@ -95,7 +95,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 </a>
               </div>
               <p className="meta text-muted-foreground">
-                © 2025 · Built with quiet UI principles
+                © 2025 · Được tạo ra bởi Báleygr
               </p>
             </div>
           </div>

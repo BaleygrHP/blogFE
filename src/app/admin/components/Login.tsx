@@ -8,15 +8,27 @@ interface LoginProps {
   onLogin?: () => void;
 }
 
+function readErrorMessage(raw: string): string {
+  if (!raw) return "Login failed";
+  try {
+    const parsed = JSON.parse(raw) as { message?: string };
+    return parsed?.message || raw;
+  } catch {
+    return raw;
+  }
+}
+
 export function Login({ onLogin }: LoginProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -26,17 +38,21 @@ export function Login({ onLogin }: LoginProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Đăng nhập thất bại");
+        const raw = await response.text();
+        throw new Error(readErrorMessage(raw));
       }
 
       if (onLogin) {
         onLogin();
       } else {
         router.push("/admin/dashboard");
+        router.refresh();
       }
     } catch (errorValue) {
       console.error(errorValue);
-      setError("Sai email hoặc mật khẩu.");
+      setError(errorValue instanceof Error ? errorValue.message : "Invalid credentials");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,7 +63,7 @@ export function Login({ onLogin }: LoginProps) {
           <div className="inline-flex items-center justify-center w-12 h-12 bg-foreground text-background mb-4">
             <Lock className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl mb-2">Đăng nhập quản trị</h1>
+          <h1 className="text-2xl mb-2">Admin Login</h1>
           <p className="meta text-muted-foreground">The Daily Chronicle</p>
         </div>
 
@@ -72,28 +88,31 @@ export function Login({ onLogin }: LoginProps) {
             </div>
 
             <div>
-              <label className="block mb-2">Mật khẩu</label>
+              <label className="block mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-                placeholder="••••••••"
+                placeholder="********"
                 required
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-foreground text-background hover:opacity-90 transition-opacity"
+              disabled={loading}
+              className="w-full py-3 bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-60"
             >
-              Đăng nhập
+              {loading ? "Signing in..." : "Sign in"}
             </button>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-border">
-            <p className="text-sm text-muted-foreground text-center">Tài khoản demo: admin@mock.local / mock</p>
-          </div>
+          {/* <div className="mt-6 pt-6 border-t border-border">
+            <p className="text-sm text-muted-foreground text-center">
+              Demo account: admin@mock.local / mock
+            </p>
+          </div> */}
         </form>
       </div>
     </div>

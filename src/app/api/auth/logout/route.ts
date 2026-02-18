@@ -1,7 +1,35 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { BE_BASE_URL, withInternalProxyHeaders } from "@/app/api/_utils/proxy";
+import { clearAuthCookies } from "@/app/api/_utils/authCookies";
 
 export async function POST() {
+  const cookieStore = await cookies();
+  const refreshToken = cookieStore.get("admin_rt")?.value || "";
+  const accessToken = cookieStore.get("admin_at")?.value || "";
+
+  if (BE_BASE_URL && refreshToken) {
+    const headers = withInternalProxyHeaders({
+      "content-type": "application/json",
+      accept: "application/json",
+    });
+    if (accessToken) {
+      headers.set("Authorization", `Bearer ${accessToken}`);
+    }
+
+    try {
+      await fetch(`${BE_BASE_URL}/api/auth/logout`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ refreshToken }),
+        cache: "no-store",
+      });
+    } catch {
+      // Ignore upstream errors: local logout still clears all auth cookies.
+    }
+  }
+
   const res = NextResponse.json({ ok: true }, { status: 200 });
-  res.cookies.set('actorUserId', '', { httpOnly: true, path: '/', maxAge: 0 });
+  clearAuthCookies(res);
   return res;
 }

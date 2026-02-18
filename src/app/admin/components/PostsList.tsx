@@ -21,7 +21,18 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
   const router = useRouter();
   const nav = (page: string) =>
     onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
-  const logout = () => (onLogout ? onLogout() : router.push("/"));
+  const logout = async () => {
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/admin/login");
+      router.refresh();
+    }
+  };
 
   const [filterSection, setFilterSection] = useState<string>(ALL_FILTER_VALUE);
   const [filterStatus, setFilterStatus] = useState<string>(ALL_FILTER_VALUE);
@@ -137,7 +148,7 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
             <span className="meta">Bài viết</span>
           </div>
           <button
-            onClick={logout}
+            onClick={() => void logout()}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
           >
             <LogOut className="w-4 h-4" />

@@ -28,7 +28,18 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
   const router = useRouter();
   const nav = (page: string) =>
     onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
-  const logout = () => (onLogout ? onLogout() : router.push("/"));
+  const logout = async () => {
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/admin/login");
+      router.refresh();
+    }
+  };
 
   const [categories, setCategories] = useState<string[]>([]);
   const [images, setImages] = useState<PublicMediaDto[]>([]);
@@ -243,7 +254,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
             <span className="meta">Thư viện</span>
           </div>
           <button
-            onClick={logout}
+            onClick={() => void logout()}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
           >
             <LogOut className="w-4 h-4" />

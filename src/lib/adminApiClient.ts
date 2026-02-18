@@ -5,21 +5,55 @@ import type { PageResponse, PostDto, SectionKey, MediaKind, PublicMediaDto } fro
 
 const API_BASE = "/api/admin";
 
+function getCsrfToken(): string {
+    if (typeof document === "undefined") return "";
+    const match = document.cookie.match(/(?:^|;\s*)admin_csrf=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+}
+
+function withCsrfHeader(headers?: HeadersInit): Headers {
+    const nextHeaders = new Headers(headers || {});
+    const csrf = getCsrfToken();
+    if (csrf) {
+        nextHeaders.set("X-CSRF-Token", csrf);
+    }
+    return nextHeaders;
+}
+
+function isMutatingMethod(method?: string): boolean {
+    const normalized = (method || "GET").toUpperCase();
+    return normalized === "POST" || normalized === "PUT" || normalized === "PATCH" || normalized === "DELETE";
+}
+
+function handleUnauthorized(status: number) {
+    if (status !== 401) return;
+    if (typeof window !== "undefined" && window.location.pathname !== "/admin/login") {
+        window.location.href = "/admin/login";
+    }
+}
+
 // ===== Helper function =====
 async function fetchJson<T>(
     path: string,
     options?: RequestInit
 ): Promise<T> {
+    const method = (options?.method || "GET").toUpperCase();
+    const baseHeaders = new Headers(options?.headers || {});
+    const headers = isMutatingMethod(method)
+        ? withCsrfHeader(baseHeaders)
+        : baseHeaders;
+    if (!headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json");
+    }
+
     const res = await fetch(path, {
         ...options,
-        headers: {
-            "Content-Type": "application/json",
-            ...(options?.headers || {}),
-        },
+        headers,
         cache: "no-store",
     });
 
     if (!res.ok) {
+        handleUnauthorized(res.status);
         const errorText = await res.text();
         throw new Error(`API error ${res.status}: ${errorText}`);
     }
@@ -104,10 +138,15 @@ export async function updatePost(
 }
 
 export async function deletePost(postId: string): Promise<void> {
-    await fetch(`${API_BASE}/posts/${postId}`, {
+    const res = await fetch(`${API_BASE}/posts/${postId}`, {
         method: "DELETE",
+        headers: withCsrfHeader(),
         cache: "no-store",
     });
+    if (!res.ok) {
+        handleUnauthorized(res.status);
+        throw new Error(`API error ${res.status}: ${await res.text()}`);
+    }
 }
 
 export async function publishPost(postId: string): Promise<AdminPostDto> {
@@ -246,11 +285,13 @@ export async function uploadMediaFile(data: MediaUploadFileDto): Promise<PublicM
 
     const res = await fetch(`${API_BASE}/media/upload`, {
         method: "POST",
+        headers: withCsrfHeader(),
         body: form,
         cache: "no-store",
     });
 
     if (!res.ok) {
+        handleUnauthorized(res.status);
         const errorText = await res.text();
         throw new Error(`API error ${res.status}: ${errorText}`);
     }
@@ -278,10 +319,15 @@ export async function updateMedia(
 }
 
 export async function deleteMedia(mediaId: string): Promise<void> {
-    await fetch(`${API_BASE}/media/${mediaId}`, {
+    const res = await fetch(`${API_BASE}/media/${mediaId}`, {
         method: "DELETE",
+        headers: withCsrfHeader(),
         cache: "no-store",
     });
+    if (!res.ok) {
+        handleUnauthorized(res.status);
+        throw new Error(`API error ${res.status}: ${await res.text()}`);
+    }
 }
 
 // ===== FRONT PAGE API =====

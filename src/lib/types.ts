@@ -7,6 +7,36 @@ export const SECTION = {
 } as const;
 
 export type SectionKey = typeof SECTION[keyof typeof SECTION]["key"];
+
+export type UserRole = "ADMIN" | "EDITOR";
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+  active: boolean;
+  createdDate?: string;
+  updatedDate?: string;
+};
+
+export type AuthTokenResponse = {
+  tokenType: "Bearer";
+  accessToken: string;
+  accessTokenExpiresIn: number;
+  refreshToken: string;
+  refreshTokenExpiresIn: number;
+  user: AuthUser;
+};
+
+export type AuthMeResponse = AuthUser;
+
+export type AuthErrorResponse = {
+  errorCode?: string;
+  message: string;
+  timestamp?: number;
+};
+
 // ===== BACKEND MODELS =====
 export type PostListItem = {
   id: string;

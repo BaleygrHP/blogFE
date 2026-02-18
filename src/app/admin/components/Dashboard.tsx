@@ -16,7 +16,18 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
   const router = useRouter();
   const nav = (page: string) =>
     onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
-  const logout = () => (onLogout ? onLogout() : router.push("/"));
+  const logout = async () => {
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/admin/login");
+      router.refresh();
+    }
+  };
 
   const [publishedCount, setPublishedCount] = useState(0);
   const [draftsCount, setDraftsCount] = useState(0);
@@ -66,7 +77,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
             <span className="font-medium">Quản trị</span>
           </div>
           <button
-            onClick={logout}
+            onClick={() => void logout()}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
           >
             <LogOut className="w-4 h-4" />

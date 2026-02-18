@@ -18,7 +18,7 @@ export function Header() {
             <h1 className="text-4xl md:text-5xl tracking-tight">The Daily Chronicle</h1>
           </Link>
           <h2>Biên niên sử của Hưng</h2>
-          <p className="meta mt-2">Tòa soạn cá nhân - hồi ký của một dân chơi</p>
+          <p className="meta mt-2">Tòa soạn cá nhân - hồi ký của một rân chơi</p>
         </div>
 
         <nav className="flex items-center justify-center gap-8 py-4 flex-wrap">
