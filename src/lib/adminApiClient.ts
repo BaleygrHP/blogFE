@@ -46,6 +46,10 @@ export interface PostCreateDto {
     section: SectionKey;
     coverImageUrl?: string;
     content?: string;
+    contentJson?: string;
+    contentHtml?: string;
+    contentText?: string;
+    contentMd?: string;
     slug?: string;
 }
 

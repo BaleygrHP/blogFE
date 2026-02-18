@@ -604,34 +604,18 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
       {isPickerOpen && (
         <div className="fixed inset-0 bg-background/70 z-40 flex items-start justify-center p-6">
           <div
-            className="w-full max-w-3xl h-[90vh] bg-card border border-border flex flex-col overflow-hidden"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              height: "90vh",
-              maxHeight: "90vh",
-              overflow: "hidden",
-            }}
+            className="w-full max-w-3xl h-[90vh] max-h-[90vh] bg-card border border-border flex flex-col overflow-hidden"
           >
-            <div className="flex items-center justify-between p-4 border-b border-border" style={{ flexShrink: 0 }}>
+            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
               <h3 className="font-medium">Thêm bài</h3>
               <button onClick={closePicker} className="p-2 hover:bg-secondary transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-4 border-b border-border" style={{ flexShrink: 0 }}>
+            <div className="p-4 border-b border-border shrink-0">
               <div className="relative">
-                <Search
-                  className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                  style={{
-                    position: "absolute",
-                    left: 16,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    pointerEvents: "none",
-                  }}
-                />
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
                   value={pickerQuery}
@@ -640,31 +624,25 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
                     setPickerPage(0);
                   }}
                   placeholder="Tìm bài đã xuất bản..."
-                  className="w-full h-11 pl-12 pr-3 border border-border bg-background leading-5"
-                  style={{ paddingLeft: 44, paddingRight: 12 }}
+                  className="w-full h-11 pl-[44px] pr-3 border border-border bg-background leading-5"
                 />
               </div>
             </div>
 
             {pickerBanner && (
               <div
-                className={`px-4 py-2 border-b ${
+                className={`px-4 py-2 border-b shrink-0 ${
                   pickerBanner.type === "success"
                     ? "border-green-600 text-green-700 bg-green-50"
                     : pickerBanner.type === "info"
                     ? "border-blue-600 text-blue-700 bg-blue-50"
                     : "border-destructive text-destructive bg-destructive/10"
-                }`}
-                style={{ flexShrink: 0 }}
-              >
+                }`}>
                 {pickerBanner.message}
               </div>
             )}
 
-            <div
-              className="p-4 space-y-3 flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
-              style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
-            >
+            <div className="p-4 space-y-3 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
               {pickerPosts.map((post) => {
                 const isLead = featuredPostId === post.id;
                 const isAdded = supportingIds.has(post.id);
@@ -709,7 +687,6 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
 
             <div
               className="p-4 border-t border-border flex items-center justify-between shrink-0"
-              style={{ flexShrink: 0 }}
             >
               <button
                 type="button"

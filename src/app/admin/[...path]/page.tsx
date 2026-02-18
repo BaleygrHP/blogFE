@@ -43,5 +43,6 @@ export default async function AdminCatchAllPage({ params }: Props) {
   // /admin/front-page
   if (seg1 === "front-page") return <FrontPageManager />;
 
-  return <div style={{ padding: 24 }}>Không tìm thấy trang quản trị.</div>;
+  return <div className="p-6">Không tìm thấy trang quản trị.</div>;
 }
+

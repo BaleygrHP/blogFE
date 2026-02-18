@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * Next.js middleware – protects /admin/* routes (except /admin/login).
+ * Next.js proxy (previously middleware) protecting /admin/* routes,
+ * except /admin/login.
  * Redirects to /admin/login if no actorUserId cookie is present.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Allow /admin/login through

@@ -55,7 +55,7 @@ export function ArticleList({
 
             <h4
               onClick={() => handleRead(article.slug)}
-              className="text-xl md:text-2xl leading-tight mb-3 cursor-pointer group-hover:opacity-70 transition-opacity"
+              className="mb-3 cursor-pointer group-hover:opacity-70 transition-opacity font-[var(--font-ui)] text-[clamp(1rem,0.95rem+0.4vw,1.125rem)] leading-[1.3] font-semibold tracking-[-0.005em]"
             >
               {article.title}
             </h4>
@@ -65,7 +65,7 @@ export function ArticleList({
             </div>
 
             {showExcerpt && article.subtitle && (
-              <p className="text-base leading-relaxed text-muted-foreground mb-3">{article.subtitle}</p>
+              <p className="mb-3 font-[var(--font-body)] text-[clamp(1rem,0.96rem+0.25vw,1.0625rem)] leading-[1.75] tracking-[0.01em] text-muted-foreground">{article.subtitle}</p>
             )}
 
             <button

@@ -34,8 +34,10 @@ export type PostDto = {
   subtitle?: string | null;
   excerpt?: string;
   content?: string;
+  contentJson?: string;
   contentMd?: string;
   contentHtml?: string;
+  contentText?: string;
   section: "EDITORIAL" | "NOTES" | "DIARY";
   publishedAt?: string | null;
   coverImageUrl?: string | null;

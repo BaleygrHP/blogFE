@@ -1,6 +1,8 @@
 "use client";
 
+import { ChevronUp } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Header } from "./components/Header";
 
 type SitePage =
@@ -37,11 +39,26 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const currentPage = getCurrentPageFromPath(pathname);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [pathname]);
 
   const handleNavigate = (page: string) => {
     if (page === "home") return router.push("/");
     if (page === "admin") return router.push("/admin");
     return router.push(`/${page}`);
+  };
+
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -84,6 +101,17 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
+
+      <button
+        type="button"
+        aria-label="Scroll to top"
+        onClick={handleScrollToTop}
+        className={`fixed right-6 bottom-6 z-50 inline-flex h-11 w-11 items-center justify-center border border-border bg-card text-foreground shadow-sm transition-all hover:border-foreground hover:bg-secondary ${
+          showScrollTop ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"
+        }`}
+      >
+        <ChevronUp className="h-5 w-5" />
+      </button>
     </div>
   );
 }

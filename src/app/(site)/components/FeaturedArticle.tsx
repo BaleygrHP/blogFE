@@ -21,7 +21,7 @@ export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps
 
         <h2
           onClick={() => handleRead(article.slug)}
-          className="text-4xl md:text-5xl leading-tight mb-4 cursor-pointer hover:opacity-70 transition-opacity"
+          className="mb-4 cursor-pointer hover:opacity-70 transition-opacity font-[var(--font-ui)] text-[clamp(2.125rem,1.8rem+1.25vw,2.5rem)] leading-[1.15] font-bold tracking-[-0.01em]"
         >
           {article.title}
         </h2>
@@ -31,7 +31,7 @@ export function FeaturedArticle({ article, onReadArticle }: FeaturedArticleProps
         </div>
 
         {article.subtitle ? (
-          <p className="text-lg leading-relaxed text-muted-foreground mb-6">{article.subtitle}</p>
+          <p className="mb-6 font-[var(--font-body)] text-[clamp(1rem,0.96rem+0.25vw,1.0625rem)] leading-[1.75] tracking-[0.01em] text-muted-foreground">{article.subtitle}</p>
         ) : null}
 
         <button
