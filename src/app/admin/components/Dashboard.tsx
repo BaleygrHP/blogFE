@@ -24,7 +24,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
-      router.push("/admin/login");
+      router.push("/");
       router.refresh();
     }
   };

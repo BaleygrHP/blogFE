@@ -28,6 +28,17 @@ interface PostEditorProps {
   postId?: string | null;
 }
 
+type SectionOption = {
+  key: "EDITORIAL" | "NOTES" | "DIARY";
+  label: string;
+};
+
+const DEFAULT_SECTION_OPTIONS: SectionOption[] = [
+  { key: "EDITORIAL", label: "Biên tập" },
+  { key: "NOTES", label: "Ghi chú" },
+  { key: "DIARY", label: "Nhật ký" },
+];
+
 const EMPTY_EDITOR_SNAPSHOT: RichEditorSnapshot = {
   html: "<p></p>",
   json: JSON.stringify({
@@ -37,16 +48,19 @@ const EMPTY_EDITOR_SNAPSHOT: RichEditorSnapshot = {
   text: "",
 };
 
+const parseSectionKey = (value: unknown): "EDITORIAL" | "NOTES" | "DIARY" | null => {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (normalized === "NOTES" || normalized === "DIARY" || normalized === "EDITORIAL") {
+    return normalized;
+  }
+  return null;
+};
+
+const normalizeSectionKey = (value: unknown): "EDITORIAL" | "NOTES" | "DIARY" =>
+  parseSectionKey(value) ?? "EDITORIAL";
+
 export function PostEditor({ mode = "create", postId = null }: PostEditorProps) {
   const router = useRouter();
-
-  const normalizeSectionKey = (value: unknown): "EDITORIAL" | "NOTES" | "DIARY" => {
-    const normalized = String(value ?? "").trim().toUpperCase();
-    if (normalized === "NOTES" || normalized === "DIARY" || normalized === "EDITORIAL") {
-      return normalized;
-    }
-    return "EDITORIAL";
-  };
 
   const [formData, setFormData] = useState<PostCreateDto>({
     title: "",
@@ -56,7 +70,7 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
     coverImageUrl: "",
     slug: "",
   });
-  const [sections, setSections] = useState<string[]>(["EDITORIAL", "NOTES", "DIARY"]);
+  const [sections, setSections] = useState<SectionOption[]>(DEFAULT_SECTION_OPTIONS);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentPost, setCurrentPost] = useState<AdminPostDto | null>(null);
@@ -70,10 +84,18 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
   useEffect(() => {
     getAdminSections()
       .then((allSections) => {
-        const normalized = allSections.map((section) => normalizeSectionKey(section.key));
-        setSections(Array.from(new Set(normalized)));
+        const next = new Map<SectionOption["key"], SectionOption>();
+
+        for (const section of allSections) {
+          const key = parseSectionKey(section.key);
+          if (!key) continue;
+          const label = String(section.name ?? section.label ?? key).trim() || key;
+          next.set(key, { key, label });
+        }
+
+        setSections(next.size > 0 ? Array.from(next.values()) : DEFAULT_SECTION_OPTIONS);
       })
-      .catch(() => setSections(["EDITORIAL", "NOTES", "DIARY"]));
+      .catch(() => setSections(DEFAULT_SECTION_OPTIONS));
   }, []);
 
   useEffect(() => {
@@ -100,7 +122,7 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
         })
         .catch((errorValue) => {
           console.error("Failed to load post:", errorValue);
-          alert("Khong the tai bai viet.");
+          alert("Không thể tải bài viết.");
           router.push("/admin/posts");
         })
         .finally(() => setLoading(false));
@@ -138,13 +160,13 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
 
   const handleSave = async (shouldPublish: boolean) => {
     if (!formData.title.trim()) {
-      alert("Vui long nhap tieu de.");
+      alert("Vui lòng nhập tiêu đề.");
       return;
     }
 
     const contentPayload = toPostPayloadFromEditor(editorSnapshot);
     if (!contentPayload.contentText.trim()) {
-      alert("Vui long nhap noi dung bai viet.");
+      alert("Vui lòng nhập nội dung bài viết.");
       return;
     }
 
@@ -161,11 +183,7 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
           await publishPost(newPost.id);
         }
 
-        alert(
-          shouldPublish
-            ? "Da xuat ban bai viet thanh cong."
-            : "Da luu bai viet dang nhap."
-        );
+        alert(shouldPublish ? "Đã xuất bản bài viết thành công." : "Đã lưu bài viết dạng nháp.");
         router.push("/admin/posts");
       } else if (mode === "edit" && postId) {
         await updatePost(postId, { ...payload, id: postId });
@@ -176,16 +194,12 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
           await unpublishPost(postId);
         }
 
-        alert(
-          shouldPublish
-            ? "Da xuat ban bai viet thanh cong."
-            : "Da cap nhat bai viet."
-        );
+        alert(shouldPublish ? "Đã xuất bản bài viết thành công." : "Đã cập nhật bài viết.");
         router.push("/admin/posts");
       }
     } catch (errorValue) {
       console.error("Failed to save post:", errorValue);
-      alert("Khong the luu bai viet. Vui long thu lai.");
+      alert("Không thể lưu bài viết. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -193,7 +207,7 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
 
   const handleUploadCoverFile = async () => {
     if (!coverFile) {
-      alert("Vui long chon anh bia.");
+      alert("Vui lòng chọn ảnh bìa.");
       return;
     }
 
@@ -208,10 +222,10 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
 
       setFormData((prev) => ({ ...prev, coverImageUrl: uploaded.url }));
       setCoverFile(null);
-      alert("Da tai anh bia len thanh cong.");
+      alert("Đã tải ảnh bìa lên thành công.");
     } catch (errorValue) {
       console.error("Failed to upload cover image:", errorValue);
-      alert("Khong the tai anh bia len. Vui long thu lai.");
+      alert("Không thể tải ảnh bìa lên. Vui lòng thử lại.");
     } finally {
       setUploadingCover(false);
     }
@@ -227,31 +241,31 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
               className="flex items-center gap-2 meta hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Quay lai
+              Quay lại
             </button>
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => alert("Xem truoc (demo)")}
+                onClick={() => alert("Xem trước (demo)")}
                 className="flex items-center gap-2 px-4 py-2 border border-border hover:border-foreground transition-colors"
                 disabled={saving}
               >
                 <Eye className="w-4 h-4" />
-                Xem truoc
+                Xem trước
               </button>
               <button
                 onClick={() => handleSave(false)}
                 className="px-4 py-2 border border-border hover:border-foreground transition-colors disabled:opacity-50"
                 disabled={saving || loading}
               >
-                {saving ? "Dang luu..." : "Luu nhap"}
+                {saving ? "Đang lưu..." : "Lưu nháp"}
               </button>
               <button
                 onClick={() => handleSave(true)}
                 className="px-4 py-2 bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-50"
                 disabled={saving || loading}
               >
-                {saving ? "Dang xuat ban..." : "Xuat ban"}
+                {saving ? "Đang xuất bản..." : "Xuất bản"}
               </button>
             </div>
           </div>
@@ -259,22 +273,22 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
       </header>
 
       <div className="max-w-4xl mx-auto px-6 py-10">
-        <h1 className="text-2xl mb-6">{mode === "edit" ? "Chinh sua bai viet" : "Bai viet moi"}</h1>
+        <h1 className="text-2xl mb-6">{mode === "edit" ? "Chỉnh sửa bài viết" : "Bài viết mới"}</h1>
 
         <div className="space-y-6">
           <div>
-            <label className="block mb-2">Tieu de</label>
+            <label className="block mb-2">Tiêu đề</label>
             <input
               value={formData.title}
               onChange={(event) => handleTitleChange(event.target.value)}
               className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-              placeholder="Tieu de bai viet"
+              placeholder="Tiêu đề bài viết"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block mb-2">Chuyen muc</label>
+              <label className="block mb-2">Chuyên mục</label>
               <select
                 value={formData.section}
                 onChange={(event) =>
@@ -286,38 +300,38 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
                 disabled={loading}
               >
-                <option value="">Chon...</option>
+                <option value="">Chọn...</option>
                 {sections.map((section) => (
-                  <option key={section} value={section}>
-                    {section}
+                  <option key={section.key} value={section.key}>
+                    {section.label}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block mb-2">Tieu de phu (tuy chon)</label>
+              <label className="block mb-2">Tiêu đề phụ (Tùy chọn)</label>
               <input
                 value={formData.subtitle || ""}
                 onChange={(event) => setFormData((prev) => ({ ...prev, subtitle: event.target.value }))}
                 className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-                placeholder="Tieu de phu"
+                placeholder="Tiêu đề phụ"
                 disabled={loading}
               />
             </div>
           </div>
 
           <div>
-            <label className="block mb-2">Tom tat</label>
+            <label className="block mb-2">Tóm tắt</label>
             <textarea
               value={formData.excerpt}
               onChange={(event) => setFormData((prev) => ({ ...prev, excerpt: event.target.value }))}
               className="w-full min-h-[100px] px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-              placeholder="Tom tat ngan..."
+              placeholder="Tóm tắt ngắn..."
             />
           </div>
 
           <div>
-            <label className="block mb-2">Anh bia (URL hoac tai file)</label>
+            <label className="block mb-2">Ảnh bìa (URL hoặc tải file)</label>
             <div className="space-y-3">
               <input
                 value={formData.coverImageUrl || ""}
@@ -341,31 +355,31 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
                   disabled={!coverFile || loading || saving || uploadingCover}
                   className="px-4 py-3 border border-border hover:border-foreground transition-colors disabled:opacity-50"
                 >
-                  {uploadingCover ? "Dang tai..." : "Tai anh len"}
+                  {uploadingCover ? "Đang tải..." : "Tải ảnh lên"}
                 </button>
               </div>
             </div>
 
             {coverFilePreviewUrl && (
               <div className="mt-4 border border-border p-2">
-                <Image src={coverFilePreviewUrl} alt="Cover preview" width={1200} height={630} />
+                <Image src={coverFilePreviewUrl} alt="Xem trước ảnh bìa" width={1200} height={630} />
               </div>
             )}
 
             {formData.coverImageUrl ? (
               <div className="mt-4 border border-border p-2">
-                <Image src={formData.coverImageUrl} alt="Cover" width={1200} height={630} />
+                <Image src={formData.coverImageUrl} alt="Ảnh bìa" width={1200} height={630} />
               </div>
             ) : null}
           </div>
 
           <div>
-            <label className="block mb-2">Noi dung</label>
+            <label className="block mb-2">Nội dung</label>
             <RichTextEditor
               initialContent={editorInitialContent}
               onChange={setEditorSnapshot}
               disabled={loading || saving}
-              placeholder="Bat dau viet bai..."
+              placeholder="Bắt đầu viết bài..."
             />
           </div>
         </div>

@@ -36,7 +36,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
-      router.push("/admin/login");
+      router.push("/");
       router.refresh();
     }
   };

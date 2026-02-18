@@ -28,17 +28,18 @@ interface CategoryManagerProps {
 
 export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) {
   const router = useRouter();
-  const nav = (page: string) =>
-    onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
+  const nav = (page: string) => (onNavigate ? onNavigate(page) : router.push(`/admin/${page}`));
+
   const logout = async () => {
     if (onLogout) {
       onLogout();
       return;
     }
+
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
-      router.push("/admin/login");
+      router.push("/");
       router.refresh();
     }
   };
@@ -49,6 +50,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
+    key: "",
     description: "",
   });
 
@@ -56,12 +58,12 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
     loadSections();
   }, []);
 
-  const toSectionKey = (value: string): string =>
+  const normalizeSectionKey = (value: string): string =>
     value
       .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+      .toUpperCase()
+      .replace(/[^A-Z0-9_-]+/g, "_")
+      .replace(/^[_-]+|[_-]+$/g, "");
 
   async function loadSections() {
     try {
@@ -81,9 +83,9 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
       return;
     }
 
-    const sectionKey = toSectionKey(formData.name);
+    const sectionKey = normalizeSectionKey(formData.key);
     if (!sectionKey) {
-      alert("Không thể tạo khóa chuyên mục từ tên này.");
+      alert("Vui lòng nhập key chuyên mục hợp lệ.");
       return;
     }
 
@@ -95,8 +97,9 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
         visibility: "PUBLIC",
         active: true,
       });
+
       await loadSections();
-      setFormData({ name: "", description: "" });
+      setFormData({ name: "", key: "", description: "" });
       setIsAdding(false);
       alert("Đã thêm chuyên mục thành công.");
     } catch (errorValue) {
@@ -109,6 +112,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
     setEditingId(section.id);
     setFormData({
       name: section.name ?? section.label ?? section.key,
+      key: section.key,
       description: section.description ?? "",
     });
   };
@@ -121,9 +125,10 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
         name: formData.name.trim(),
         description: formData.description.trim(),
       });
+
       await loadSections();
       setEditingId(null);
-      setFormData({ name: "", description: "" });
+      setFormData({ name: "", key: "", description: "" });
       alert("Đã cập nhật chuyên mục thành công.");
     } catch (errorValue) {
       console.error("Failed to update section:", errorValue);
@@ -144,7 +149,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
   const handleCancel = () => {
     setIsAdding(false);
     setEditingId(null);
-    setFormData({ name: "", description: "" });
+    setFormData({ name: "", key: "", description: "" });
   };
 
   return (
@@ -162,6 +167,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
             <span className="text-muted-foreground">/</span>
             <span className="meta">Chuyên mục</span>
           </div>
+
           <button
             onClick={() => void logout()}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
@@ -184,7 +190,10 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
         {!isAdding && !editingId && (
           <div className="mb-8">
             <button
-              onClick={() => setIsAdding(true)}
+              onClick={() => {
+                setFormData({ name: "", key: "", description: "" });
+                setIsAdding(true);
+              }}
               className="flex items-center gap-2 px-6 py-3 bg-foreground text-background hover:opacity-90 transition-opacity"
             >
               <Plus className="w-5 h-5" />
@@ -198,16 +207,32 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
             <h2 className="text-xl mb-6">{isAdding ? "Thêm mới" : "Chỉnh sửa"} chuyên mục</h2>
 
             <div className="space-y-4">
-              <div>
-                <label className="block mb-2 text-sm font-medium">Tên *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(event) => setFormData({ ...formData, name: event.target.value })}
-                  className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
-                  placeholder="Ví dụ: Reviews"
-                  required
-                />
+              <div className={isAdding ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "grid grid-cols-1"}>
+                <div>
+                  <label className="block mb-2 text-sm font-medium">Tên *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+                    className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
+                    placeholder="Ví dụ: Reviews"
+                    required
+                  />
+                </div>
+
+                {isAdding ? (
+                  <div>
+                    <label className="block mb-2 text-sm font-medium">Key *</label>
+                    <input
+                      type="text"
+                      value={formData.key}
+                      onChange={(event) => setFormData({ ...formData, key: event.target.value })}
+                      className="w-full px-4 py-3 border border-input focus:border-foreground focus:outline-none transition-colors bg-background"
+                      placeholder="VD: REVIEWS"
+                      required
+                    />
+                  </div>
+                ) : null}
               </div>
 
               <div>

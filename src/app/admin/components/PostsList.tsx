@@ -11,6 +11,24 @@ interface PostsListProps {
   onLogout?: () => void;
 }
 
+type SectionOption = {
+  key: string;
+  name: string;
+};
+
+const DEFAULT_SECTIONS: SectionOption[] = [
+  { key: "EDITORIAL", name: "Editorial" },
+  { key: "NOTES", name: "Notes" },
+  { key: "DIARY", name: "Diary" },
+];
+
+const DEFAULT_SECTION_NAME_MAP: Record<string, string> = Object.fromEntries(
+  DEFAULT_SECTIONS.flatMap((section) => [
+    [section.key, section.name],
+    [section.key.toUpperCase(), section.name],
+  ])
+);
+
 const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
   { value: ALL_FILTER_VALUE, label: UI_TEXT.filter.all },
   { value: "published", label: "Đã xuất bản" },
@@ -29,7 +47,7 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
-      router.push("/admin/login");
+      router.push("/");
       router.refresh();
     }
   };
@@ -41,8 +59,9 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
   const [allPosts, setAllPosts] = useState<AdminPostDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalElements, setTotalElements] = useState(0);
-  const [sections, setSections] = useState<string[]>(["EDITORIAL", "NOTES", "DIARY"]);
+  const [sections, setSections] = useState<SectionOption[]>(DEFAULT_SECTIONS);
   const [sectionIdByKey, setSectionIdByKey] = useState<Record<string, string>>({});
+  const [sectionNameByKey, setSectionNameByKey] = useState<Record<string, string>>(DEFAULT_SECTION_NAME_MAP);
 
   const availableYears = Array.from(
     new Set(
@@ -57,23 +76,39 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
   useEffect(() => {
     getAdminSections()
       .then((allSections) => {
-        const map: Record<string, string> = {};
-        const nextSections: string[] = [];
+        const idMap: Record<string, string> = {};
+        const nameMap: Record<string, string> = {};
+        const nextSections: SectionOption[] = [];
 
         for (const section of allSections) {
           if (!section.key || !section.id) continue;
-          map[section.key] = section.id;
-          map[section.key.toUpperCase()] = section.id;
-          nextSections.push(section.key);
+          const key = String(section.key).trim();
+          const upperKey = key.toUpperCase();
+          const name = String(section.name ?? section.label ?? key).trim() || key;
+          if (nameMap[upperKey]) continue;
+
+          idMap[key] = section.id;
+          idMap[upperKey] = section.id;
+          nameMap[key] = name;
+          nameMap[upperKey] = name;
+          nextSections.push({ key, name });
         }
 
-        setSectionIdByKey(map);
-        setSections(nextSections.length > 0 ? nextSections : ["EDITORIAL", "NOTES", "DIARY"]);
+        if (nextSections.length > 0) {
+          setSectionIdByKey(idMap);
+          setSectionNameByKey(nameMap);
+          setSections(nextSections);
+        } else {
+          setSectionIdByKey({});
+          setSectionNameByKey(DEFAULT_SECTION_NAME_MAP);
+          setSections(DEFAULT_SECTIONS);
+        }
       })
       .catch((errorValue) => {
         console.error("Failed to load sections:", errorValue);
         setSectionIdByKey({});
-        setSections(["EDITORIAL", "NOTES", "DIARY"]);
+        setSectionNameByKey(DEFAULT_SECTION_NAME_MAP);
+        setSections(DEFAULT_SECTIONS);
       });
   }, []);
 
@@ -83,7 +118,9 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
         setLoading(true);
 
         const sectionKey = filterSection === ALL_FILTER_VALUE ? undefined : filterSection;
-        const sectionId = sectionKey ? sectionIdByKey[sectionKey] : undefined;
+        const sectionId = sectionKey
+          ? sectionIdByKey[sectionKey] ?? sectionIdByKey[sectionKey.toUpperCase()]
+          : undefined;
         const statusParam =
           filterStatus === ALL_FILTER_VALUE ? undefined : (filterStatus as "published" | "draft");
 
@@ -172,17 +209,17 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
           <div>
             <label className="section-label text-muted-foreground mb-3 block text-xs">Chuyên mục</label>
             <div className="flex gap-2">
-              {[ALL_FILTER_VALUE, ...sections].map((section) => (
+              {[{ key: ALL_FILTER_VALUE, name: UI_TEXT.filter.all }, ...sections].map((section) => (
                 <button
-                  key={section}
-                  onClick={() => setFilterSection(section)}
+                  key={section.key}
+                  onClick={() => setFilterSection(section.key)}
                   className={`px-4 py-2 border text-sm transition-colors ${
-                    filterSection === section
+                    filterSection === section.key
                       ? "border-foreground bg-foreground text-background"
                       : "border-border hover:border-foreground"
                   }`}
                 >
-                  {section === ALL_FILTER_VALUE ? UI_TEXT.filter.all : section}
+                  {section.name}
                 </button>
               ))}
             </div>
@@ -279,7 +316,11 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
                         <span className="section-label text-xs text-muted-foreground">NỔI BẬT</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 meta">{post.section}</td>
+                    <td className="px-6 py-4 meta">
+                      {sectionNameByKey[post.section] ??
+                        sectionNameByKey[String(post.section).toUpperCase()] ??
+                        post.section}
+                    </td>
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex items-center gap-1 text-xs ${

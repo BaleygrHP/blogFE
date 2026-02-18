@@ -328,14 +328,14 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
     if (composition.items.length >= SUPPORTING_MAX_ITEMS) {
       setPickerBanner({
         type: "error",
-        message: `Supporting stories tối đa ${SUPPORTING_MAX_ITEMS} bài.`,
+        message: `Khu vực bài hỗ trợ tối đa ${SUPPORTING_MAX_ITEMS} bài.`,
       });
       return;
     }
     if (featuredPostId === post.id) {
       setPickerBanner({
         type: "info",
-        message: "Bài chính hiện tại không thể thêm vào supporting.",
+        message: "Bài chính hiện tại không thể thêm vào danh sách hỗ trợ.",
       });
       return;
     }
@@ -366,8 +366,8 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
             position: idx + 1,
           })),
         }),
-        (version) =>
-          addCuratedPost(
+      (version) =>
+        addCuratedPost(
             {
               postId: post.id,
               position: composition.items.length + 1,
@@ -375,8 +375,8 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
             },
             version
           ),
-        "Đã thêm vào supporting."
-      );
+      "Đã thêm vào danh sách hỗ trợ."
+    );
     } finally {
       setPendingAddPostIds((prev) => prev.filter((id) => id !== post.id));
     }
@@ -392,7 +392,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
           .map((existing, idx) => ({ ...existing, position: idx + 1 })),
       }),
       (version) => deleteFrontPageItem(item.id, version),
-      "Đã gỡ bài supporting."
+      "Đã gỡ bài hỗ trợ."
     );
   };
 
@@ -574,7 +574,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
           {loading ? (
             <div className="p-6 text-muted-foreground">Đang tải...</div>
           ) : supportingItems.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground">Chưa có bài supporting nào.</div>
+            <div className="p-6 text-center text-muted-foreground">Chưa có bài hỗ trợ nào.</div>
           ) : (
             <div className="p-4 space-y-2">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -672,7 +672,7 @@ export function FrontPageManager({ onNavigate }: FrontPageManagerProps) {
                           ? "Đang thêm..."
                           : isAdded
                           ? "Đã thêm ✓"
-                          : "Thêm vào supporting"}
+                          : "Thêm vào hỗ trợ"}
                       </button>
                     </div>
                   </div>

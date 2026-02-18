@@ -96,7 +96,7 @@ export function RichTextEditor({
   initialContent,
   onChange,
   disabled = false,
-  placeholder = "Write here...",
+  placeholder = "Viết nội dung tại đây...",
 }: RichTextEditorProps) {
   const initialContentKey = useMemo(() => serializeInitialContent(initialContent), [initialContent]);
   const lastAppliedRef = useRef<string>("");
@@ -159,7 +159,7 @@ export function RichTextEditor({
   const handleSetLink = () => {
     if (!editor || disabled) return;
     const previousUrl = String(editor.getAttributes("link").href ?? "");
-    const input = window.prompt("Nhap URL", previousUrl || "https://");
+    const input = window.prompt("Nhập URL", previousUrl || "https://");
     if (input === null) return;
 
     const url = normalizeLink(input);
@@ -174,7 +174,7 @@ export function RichTextEditor({
   const handleInsertImageByUrl = () => {
     if (!editor || disabled) return;
 
-    const input = window.prompt("Nhap URL anh", "https://");
+    const input = window.prompt("Nhập URL ảnh", "https://");
     if (input === null) return;
 
     const src = input.trim();
@@ -222,7 +222,7 @@ export function RichTextEditor({
         .run();
     } catch (errorValue) {
       console.error("Failed to upload image for editor:", errorValue);
-      alert("Khong the tai anh len. Vui long thu lai.");
+      alert("Không thể tải ảnh lên. Vui lòng thử lại.");
     } finally {
       setUploadingImage(false);
     }
@@ -231,7 +231,7 @@ export function RichTextEditor({
   if (!editor) {
     return (
       <div className="editor-shell p-4 text-sm text-muted-foreground">
-        Dang tai trinh soan thao...
+        Đang tải trình soạn thảo...
       </div>
     );
   }
@@ -240,7 +240,7 @@ export function RichTextEditor({
     <div className="editor-shell">
       <div className="editor-toolbar">
         <ToolbarButton
-          title="Bold"
+          title="In đậm"
           isActive={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
           disabled={disabled || !editor.can().chain().focus().toggleBold().run()}
@@ -248,7 +248,7 @@ export function RichTextEditor({
           <Bold className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Italic"
+          title="In nghiêng"
           isActive={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           disabled={disabled || !editor.can().chain().focus().toggleItalic().run()}
@@ -256,7 +256,7 @@ export function RichTextEditor({
           <Italic className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Underline"
+          title="Gạch chân"
           isActive={editor.isActive("underline")}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           disabled={disabled}
@@ -265,7 +265,7 @@ export function RichTextEditor({
         </ToolbarButton>
 
         <ToolbarButton
-          title="Heading 1"
+          title="Tiêu đề 1"
           isActive={editor.isActive("heading", { level: 1 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           disabled={disabled}
@@ -273,7 +273,7 @@ export function RichTextEditor({
           <Heading1 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Heading 2"
+          title="Tiêu đề 2"
           isActive={editor.isActive("heading", { level: 2 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           disabled={disabled}
@@ -281,7 +281,7 @@ export function RichTextEditor({
           <Heading2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Heading 3"
+          title="Tiêu đề 3"
           isActive={editor.isActive("heading", { level: 3 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
           disabled={disabled}
@@ -290,7 +290,7 @@ export function RichTextEditor({
         </ToolbarButton>
 
         <ToolbarButton
-          title="Bullet List"
+          title="Danh sách chấm"
           isActive={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           disabled={disabled}
@@ -298,7 +298,7 @@ export function RichTextEditor({
           <List className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Ordered List"
+          title="Danh sách số"
           isActive={editor.isActive("orderedList")}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           disabled={disabled}
@@ -306,7 +306,7 @@ export function RichTextEditor({
           <ListOrdered className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Blockquote"
+          title="Trích dẫn"
           isActive={editor.isActive("blockquote")}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           disabled={disabled}
@@ -314,7 +314,7 @@ export function RichTextEditor({
           <Quote className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Code Block"
+          title="Khối mã"
           isActive={editor.isActive("codeBlock")}
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           disabled={disabled}
@@ -322,14 +322,14 @@ export function RichTextEditor({
           <Code2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Horizontal Rule"
+          title="Đường kẻ ngang"
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           disabled={disabled}
         >
           <Minus className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Link"
+          title="Liên kết"
           isActive={editor.isActive("link")}
           onClick={handleSetLink}
           disabled={disabled}
@@ -337,28 +337,28 @@ export function RichTextEditor({
           <Link2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Image URL"
+          title="Chèn ảnh bằng URL"
           onClick={handleInsertImageByUrl}
           disabled={disabled}
         >
           <ImageIcon className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title={uploadingImage ? "Dang tai anh..." : "Upload image"}
+          title={uploadingImage ? "Đang tải ảnh..." : "Tải ảnh từ máy"}
           onClick={handlePickImageFile}
           disabled={disabled || uploadingImage}
         >
           <ImageIcon className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Undo"
+          title="Hoàn tác"
           onClick={() => editor.chain().focus().undo().run()}
           disabled={disabled || !editor.can().chain().focus().undo().run()}
         >
           <Undo2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Redo"
+          title="Làm lại"
           onClick={() => editor.chain().focus().redo().run()}
           disabled={disabled || !editor.can().chain().focus().redo().run()}
         >

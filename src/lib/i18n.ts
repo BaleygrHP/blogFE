@@ -2,7 +2,7 @@ export const UI_TEXT = {
   common: {
     back: "Quay lại",
     loading: "Đang tải...",
-    loadMore: "Xem thêm \u2192",
+    loadMore: "Xem thêm →",
     end: "Hết.",
   },
   frontPage: {
