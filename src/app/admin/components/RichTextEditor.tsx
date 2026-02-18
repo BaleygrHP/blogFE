@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Node, mergeAttributes } from "@tiptap/core";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -21,7 +22,9 @@ import {
   Undo2,
   Redo2,
   Link2,
+  Image as ImageIcon,
 } from "lucide-react";
+import { uploadMediaFile } from "@/lib/adminApiClient";
 import type { EditorInitialContent, RichEditorSnapshot } from "@/lib/editorContent";
 
 type RichTextEditorProps = {
@@ -69,6 +72,26 @@ function normalizeLink(url: string): string {
   return `https://${trimmed}`;
 }
 
+const ImageNode = Node.create({
+  name: "image",
+  group: "block",
+  atom: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      src: { default: null },
+      alt: { default: null },
+      title: { default: null },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "img[src]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["img", mergeAttributes(HTMLAttributes)];
+  },
+});
+
 export function RichTextEditor({
   initialContent,
   onChange,
@@ -77,6 +100,8 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const initialContentKey = useMemo(() => serializeInitialContent(initialContent), [initialContent]);
   const lastAppliedRef = useRef<string>("");
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const emitSnapshot = useCallback(
     (instance: Editor) => {
@@ -97,6 +122,7 @@ export function RichTextEditor({
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
+      ImageNode,
       Link.configure({
         autolink: true,
         linkOnPaste: true,
@@ -143,6 +169,63 @@ export function RichTextEditor({
     }
 
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+  };
+
+  const handleInsertImageByUrl = () => {
+    if (!editor || disabled) return;
+
+    const input = window.prompt("Nhap URL anh", "https://");
+    if (input === null) return;
+
+    const src = input.trim();
+    if (!src) return;
+
+    editor
+      .chain()
+      .focus()
+      .insertContent({ type: "image", attrs: { src, alt: "", title: "" } })
+      .run();
+  };
+
+  const handlePickImageFile = () => {
+    if (disabled || uploadingImage) return;
+    imageInputRef.current?.click();
+  };
+
+  const handleUploadImageFile = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    if (!file || !editor || disabled) return;
+
+    try {
+      setUploadingImage(true);
+      const uploaded = await uploadMediaFile({
+        file,
+        kind: "IMAGE",
+        title: file.name,
+        alt: file.name,
+      });
+
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "image",
+          attrs: {
+            src: uploaded.url,
+            alt: uploaded.alt || uploaded.title || file.name,
+            title: uploaded.title || file.name,
+          },
+        })
+        .run();
+    } catch (errorValue) {
+      console.error("Failed to upload image for editor:", errorValue);
+      alert("Khong the tai anh len. Vui long thu lai.");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   if (!editor) {
@@ -254,6 +337,20 @@ export function RichTextEditor({
           <Link2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
+          title="Image URL"
+          onClick={handleInsertImageByUrl}
+          disabled={disabled}
+        >
+          <ImageIcon className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          title={uploadingImage ? "Dang tai anh..." : "Upload image"}
+          onClick={handlePickImageFile}
+          disabled={disabled || uploadingImage}
+        >
+          <ImageIcon className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
           title="Undo"
           onClick={() => editor.chain().focus().undo().run()}
           disabled={disabled || !editor.can().chain().focus().undo().run()}
@@ -268,6 +365,14 @@ export function RichTextEditor({
           <Redo2 className="w-4 h-4" />
         </ToolbarButton>
       </div>
+
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleUploadImageFile}
+      />
 
       <EditorContent editor={editor} className="editor-content" />
     </div>

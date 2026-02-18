@@ -11,6 +11,7 @@ import {
   publishPost,
   unpublishPost,
   getAdminSections,
+  uploadMediaFile,
   type AdminPostDto,
   type PostCreateDto,
 } from "@/lib/adminApiClient";
@@ -62,6 +63,9 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
 
   const [editorInitialContent, setEditorInitialContent] = useState<EditorInitialContent>("");
   const [editorSnapshot, setEditorSnapshot] = useState<RichEditorSnapshot>(EMPTY_EDITOR_SNAPSHOT);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverFilePreviewUrl, setCoverFilePreviewUrl] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   useEffect(() => {
     getAdminSections()
@@ -106,6 +110,17 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
       setEditorSnapshot(EMPTY_EDITOR_SNAPSHOT);
     }
   }, [mode, postId, router]);
+
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverFilePreviewUrl(null);
+      return;
+    }
+
+    const preview = URL.createObjectURL(coverFile);
+    setCoverFilePreviewUrl(preview);
+    return () => URL.revokeObjectURL(preview);
+  }, [coverFile]);
 
   const generateSlug = (title: string) =>
     title
@@ -173,6 +188,32 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
       alert("Khong the luu bai viet. Vui long thu lai.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUploadCoverFile = async () => {
+    if (!coverFile) {
+      alert("Vui long chon anh bia.");
+      return;
+    }
+
+    try {
+      setUploadingCover(true);
+      const uploaded = await uploadMediaFile({
+        file: coverFile,
+        kind: "IMAGE",
+        title: formData.title || coverFile.name,
+        alt: formData.title || coverFile.name,
+      });
+
+      setFormData((prev) => ({ ...prev, coverImageUrl: uploaded.url }));
+      setCoverFile(null);
+      alert("Da tai anh bia len thanh cong.");
+    } catch (errorValue) {
+      console.error("Failed to upload cover image:", errorValue);
+      alert("Khong the tai anh bia len. Vui long thu lai.");
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -276,14 +317,41 @@ export function PostEditor({ mode = "create", postId = null }: PostEditorProps) 
           </div>
 
           <div>
-            <label className="block mb-2">URL anh bia</label>
-            <input
-              value={formData.coverImageUrl || ""}
-              onChange={(event) => setFormData((prev) => ({ ...prev, coverImageUrl: event.target.value }))}
-              className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
-              placeholder="https://..."
-              disabled={loading}
-            />
+            <label className="block mb-2">Anh bia (URL hoac tai file)</label>
+            <div className="space-y-3">
+              <input
+                value={formData.coverImageUrl || ""}
+                onChange={(event) => setFormData((prev) => ({ ...prev, coverImageUrl: event.target.value }))}
+                className="w-full px-4 py-3 bg-background border border-input focus:border-foreground focus:outline-none transition-colors"
+                placeholder="https://..."
+                disabled={loading || uploadingCover}
+              />
+
+              <div className="flex flex-col md:flex-row md:items-center gap-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setCoverFile(event.target.files?.[0] || null)}
+                  className="w-full md:flex-1 px-4 py-3 bg-background border border-input"
+                  disabled={loading || saving || uploadingCover}
+                />
+                <button
+                  type="button"
+                  onClick={handleUploadCoverFile}
+                  disabled={!coverFile || loading || saving || uploadingCover}
+                  className="px-4 py-3 border border-border hover:border-foreground transition-colors disabled:opacity-50"
+                >
+                  {uploadingCover ? "Dang tai..." : "Tai anh len"}
+                </button>
+              </div>
+            </div>
+
+            {coverFilePreviewUrl && (
+              <div className="mt-4 border border-border p-2">
+                <Image src={coverFilePreviewUrl} alt="Cover preview" width={1200} height={630} />
+              </div>
+            )}
+
             {formData.coverImageUrl ? (
               <div className="mt-4 border border-border p-2">
                 <Image src={formData.coverImageUrl} alt="Cover" width={1200} height={630} />
