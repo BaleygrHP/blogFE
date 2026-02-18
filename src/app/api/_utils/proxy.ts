@@ -3,7 +3,23 @@ import { cookies } from "next/headers";
 import type { AuthTokenResponse } from "@/lib/types";
 import { applyAuthCookies, clearAuthCookies } from "@/app/api/_utils/authCookies";
 
-export const BE_BASE_URL = process.env.BE_BASE_URL || process.env.NEXT_PUBLIC_BE_BASE_URL;
+function normalizeBaseUrl(raw?: string): string {
+  const input = String(raw || "").trim();
+  if (!input) return "";
+
+  try {
+    const parsed = new URL(input);
+    let pathname = parsed.pathname.replace(/\/{2,}/g, "/").replace(/\/+$/, "");
+    if (pathname === "/") pathname = "";
+    return `${parsed.origin}${pathname}`;
+  } catch {
+    return input.replace(/\/+$/, "");
+  }
+}
+
+export const BE_BASE_URL = normalizeBaseUrl(
+  process.env.BE_BASE_URL || process.env.NEXT_PUBLIC_BE_BASE_URL
+);
 export const INTERNAL_PROXY_KEY = process.env.INTERNAL_PROXY_KEY || "";
 
 if (!BE_BASE_URL) {
@@ -137,9 +153,12 @@ export async function proxyToBE(
 
   const method = req.method.toUpperCase();
   const url = new URL(req.url);
-  const target = `${BE_BASE_URL}${bePath}${url.search || ""}`;
+  const normalizedBePath = bePath.startsWith("/") ? bePath : `/${bePath}`;
+  const target = `${BE_BASE_URL}${normalizedBePath}${url.search || ""}`;
 
-  const requireAuth = options?.requireAuth ?? (bePath.startsWith("/api/admin/") || bePath === "/api/auth/me");
+  const requireAuth =
+    options?.requireAuth ??
+    (normalizedBePath.startsWith("/api/admin/") || normalizedBePath === "/api/auth/me");
   const enforceCsrf = options?.enforceCsrf ?? (requireAuth && isMutatingMethod(method));
   const allowRefreshOn401 = options?.allowRefreshOn401 ?? requireAuth;
 

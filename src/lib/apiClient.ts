@@ -13,9 +13,21 @@ import type {
  *  - Server-side (SSR): call the backend directly
  *  - Client-side: call through Next.js route handlers (/api/*)
  */
-const BE_BASE_URL =
-  process.env.BE_BASE_URL?.replace(/\/$/, "") ||
-  "http://localhost:7055/newspaper-project";
+function normalizeBaseUrl(raw?: string): string {
+  const input = String(raw || "").trim();
+  if (!input) return "";
+
+  try {
+    const parsed = new URL(input);
+    let pathname = parsed.pathname.replace(/\/{2,}/g, "/").replace(/\/+$/, "");
+    if (pathname === "/") pathname = "";
+    return `${parsed.origin}${pathname}`;
+  } catch {
+    return input.replace(/\/+$/, "");
+  }
+}
+
+const BE_BASE_URL = normalizeBaseUrl(process.env.BE_BASE_URL) || "http://localhost:7055/newspaper-project";
 
 function getApiBase(): string {
   if (typeof window === "undefined") {
