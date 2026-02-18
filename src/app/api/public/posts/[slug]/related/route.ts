@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
-import { proxyToBE } from '../../../../_utils/proxy';
+import { proxyToBE } from '@/app/api/_utils/proxy';
 
-export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
-  return proxyToBE(req, `/api/public/posts/${encodeURIComponent(params.slug)}/related`);
+export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  return proxyToBE(req, `/api/public/posts/${encodeURIComponent(slug)}/related`);
 }

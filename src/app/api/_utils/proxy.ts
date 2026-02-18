@@ -1,76 +1,198 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import type { AuthTokenResponse } from "@/lib/types";
+import { applyAuthCookies, clearAuthCookies } from "@/app/api/_utils/authCookies";
 
-/**
- * Base URL of Spring Boot backend.
- * Example: http://localhost:8080
- */
 export const BE_BASE_URL = process.env.BE_BASE_URL || process.env.NEXT_PUBLIC_BE_BASE_URL;
+export const INTERNAL_PROXY_KEY = process.env.INTERNAL_PROXY_KEY || "";
 
 if (!BE_BASE_URL) {
-  // Not throwing at module load time in production builds, but will help during dev.
-  console.warn('[api-proxy] Missing BE_BASE_URL (or NEXT_PUBLIC_BE_BASE_URL) env var');
+  console.warn("[api-proxy] Missing BE_BASE_URL (or NEXT_PUBLIC_BE_BASE_URL) env var");
 }
 
-function pickHeaders(req: NextRequest): Headers {
-  const h = new Headers();
+type ProxyOptions = {
+  requireAuth?: boolean;
+  enforceCsrf?: boolean;
+  allowRefreshOn401?: boolean;
+};
 
-  // Forward content-type/accept for JSON APIs
-  const ct = req.headers.get('content-type');
-  if (ct) h.set('content-type', ct);
-  const accept = req.headers.get('accept');
-  if (accept) h.set('accept', accept);
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-  // Actor header: prefer cookie (set by /api/auth/login), fallback to incoming header
-  const cookieStore = cookies();
-  const actorFromCookie = cookieStore.get('actorUserId')?.value;
-  const actorFromHeader = req.headers.get('x-actor-userid') || req.headers.get('X-Actor-UserId');
-  const actor = actorFromCookie || actorFromHeader;
-  if (actor) h.set('X-Actor-UserId', actor);
-
-  return h;
+export function withInternalProxyHeaders(headers?: HeadersInit): Headers {
+  const nextHeaders = new Headers(headers);
+  if (INTERNAL_PROXY_KEY) {
+    nextHeaders.set("X-Internal-Proxy-Key", INTERNAL_PROXY_KEY);
+  }
+  return nextHeaders;
 }
 
-export async function proxyToBE(req: NextRequest, bePath: string): Promise<NextResponse> {
+function isMutatingMethod(method: string): boolean {
+  return MUTATING_METHODS.has(method.toUpperCase());
+}
+
+function parseAuthPayload(raw: string): AuthTokenResponse | null {
+  try {
+    const data = raw ? (JSON.parse(raw) as Partial<AuthTokenResponse>) : null;
+    if (!data?.accessToken || !data?.refreshToken || !data?.user) return null;
+    return {
+      tokenType: "Bearer",
+      accessToken: data.accessToken,
+      accessTokenExpiresIn: Number(data.accessTokenExpiresIn) || 900,
+      refreshToken: data.refreshToken,
+      refreshTokenExpiresIn: Number(data.refreshTokenExpiresIn) || 60 * 60 * 24 * 7,
+      user: data.user,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function passthroughHeaders(from: Headers): Headers {
+  const headers = new Headers();
+  const keys = [
+    "content-type",
+    "content-disposition",
+    "content-length",
+    "etag",
+    "cache-control",
+    "accept-ranges",
+    "content-range",
+    "location",
+    "x-content-type-options",
+  ];
+
+  for (const key of keys) {
+    const value = from.get(key);
+    if (value) headers.set(key, value);
+  }
+  return headers;
+}
+
+async function refreshAccessToken(refreshToken: string, req: NextRequest): Promise<AuthTokenResponse | null> {
+  if (!BE_BASE_URL || !refreshToken) return null;
+
+  const headers = withInternalProxyHeaders({
+    "content-type": "application/json",
+    accept: "application/json",
+  });
+
+  const userAgent = req.headers.get("user-agent");
+  if (userAgent) headers.set("user-agent", userAgent);
+
+  const upstream = await fetch(`${BE_BASE_URL}/api/auth/refresh`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ refreshToken }),
+    cache: "no-store",
+  });
+
+  const raw = await upstream.text();
+  if (!upstream.ok) return null;
+  return parseAuthPayload(raw);
+}
+
+async function buildUpstreamHeaders(req: NextRequest, accessToken?: string): Promise<Headers> {
+  const headers = withInternalProxyHeaders();
+
+  const ct = req.headers.get("content-type");
+  if (ct) headers.set("content-type", ct);
+  const accept = req.headers.get("accept");
+  if (accept) headers.set("accept", accept);
+  const range = req.headers.get("range");
+  if (range) headers.set("range", range);
+  const ifNoneMatch = req.headers.get("if-none-match");
+  if (ifNoneMatch) headers.set("if-none-match", ifNoneMatch);
+  const ifMatch = req.headers.get("if-match");
+  if (ifMatch) headers.set("if-match", ifMatch);
+  const frontPageVersion =
+    req.headers.get("x-frontpage-version") || req.headers.get("X-FrontPage-Version");
+  if (frontPageVersion) headers.set("X-FrontPage-Version", frontPageVersion);
+  const ifModifiedSince = req.headers.get("if-modified-since");
+  if (ifModifiedSince) headers.set("if-modified-since", ifModifiedSince);
+
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
+  return headers;
+}
+
+function unauthorizedResponse(message = "Unauthorized"): NextResponse {
+  const res = NextResponse.json({ message }, { status: 401 });
+  clearAuthCookies(res);
+  return res;
+}
+
+export async function proxyToBE(
+  req: NextRequest,
+  bePath: string,
+  options?: ProxyOptions
+): Promise<NextResponse> {
   if (!BE_BASE_URL) {
     return NextResponse.json(
-      { message: 'Missing BE_BASE_URL env var on Frontend server' },
+      { message: "Missing BE_BASE_URL env var on Frontend server" },
       { status: 500 }
     );
   }
 
-  const url = new URL(req.url);
-  const target = `${BE_BASE_URL}${bePath}${url.search || ''}`;
-
-  // Read body only when needed
   const method = req.method.toUpperCase();
-  const hasBody = !['GET', 'HEAD'].includes(method);
-  const body = hasBody ? await req.text() : undefined;
+  const url = new URL(req.url);
+  const target = `${BE_BASE_URL}${bePath}${url.search || ""}`;
 
-  const upstream = await fetch(target, {
-    method,
-    headers: pickHeaders(req),
-    body,
-    // Avoid Next.js caching for API proxy
-    cache: 'no-store',
-  });
+  const requireAuth = options?.requireAuth ?? (bePath.startsWith("/api/admin/") || bePath === "/api/auth/me");
+  const enforceCsrf = options?.enforceCsrf ?? (requireAuth && isMutatingMethod(method));
+  const allowRefreshOn401 = options?.allowRefreshOn401 ?? requireAuth;
 
-  const contentType = upstream.headers.get('content-type') || '';
-  const raw = await upstream.text();
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("admin_at")?.value || "";
+  const refreshToken = cookieStore.get("admin_rt")?.value || "";
 
-  // Pass-through status & payload
-  if (contentType.includes('application/json')) {
-    try {
-      const json = raw ? JSON.parse(raw) : null;
-      return NextResponse.json(json, { status: upstream.status });
-    } catch {
-      // Backend said JSON but response isn't parseable
-      return new NextResponse(raw, { status: upstream.status });
+  if (requireAuth && !accessToken && !refreshToken) {
+    return unauthorizedResponse();
+  }
+
+  if (enforceCsrf) {
+    const headerToken = req.headers.get("x-csrf-token") || req.headers.get("X-CSRF-Token");
+    const cookieToken = cookieStore.get("admin_csrf")?.value || "";
+    if (!headerToken || !cookieToken || headerToken !== cookieToken) {
+      return NextResponse.json({ message: "CSRF token mismatch" }, { status: 403 });
     }
   }
 
-  return new NextResponse(raw, {
+  const hasBody = !["GET", "HEAD"].includes(method);
+  const body = hasBody ? new Uint8Array(await req.arrayBuffer()) : undefined;
+
+  const send = async (token?: string) =>
+    fetch(target, {
+      method,
+      headers: await buildUpstreamHeaders(req, token),
+      body,
+      cache: "no-store",
+      redirect: "manual",
+    });
+
+  let upstream = await send(accessToken || undefined);
+  let refreshedPayload: AuthTokenResponse | null = null;
+
+  if (allowRefreshOn401 && upstream.status === 401 && refreshToken) {
+    refreshedPayload = await refreshAccessToken(refreshToken, req);
+    if (refreshedPayload?.accessToken) {
+      upstream = await send(refreshedPayload.accessToken);
+    }
+  }
+
+  const response = new NextResponse(upstream.body, {
     status: upstream.status,
-    headers: { 'content-type': contentType || 'text/plain; charset=utf-8' },
+    headers: passthroughHeaders(upstream.headers),
   });
+
+  if (refreshedPayload) {
+    applyAuthCookies(response, refreshedPayload);
+  }
+
+  if (requireAuth && upstream.status === 401) {
+    clearAuthCookies(response);
+  }
+
+  return response;
 }

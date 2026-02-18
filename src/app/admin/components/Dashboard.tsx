@@ -1,175 +1,219 @@
-import { FileText, FilePlus, LogOut, Edit3, Image, Tag } from 'lucide-react';
-import { getAllPublishedArticles, getAllDrafts } from '../../../lib/mockData';
-import { getAllGalleryImages } from '../../../lib/galleryData';
+"use client";
+
+import { useEffect, useState } from "react";
+import { FileText, FilePlus, LogOut, Edit3, Image as ImageIcon, Tag, Layout } from "lucide-react";
+import NextImage from "next/image";
+import { useRouter } from "next/navigation";
+import { getAdminPosts, getAdminMedia, type AdminPostDto } from "@/lib/adminApiClient";
+import type { PublicMediaDto } from "@/lib/types";
 
 interface DashboardProps {
-  onNavigate: (page: string) => void;
-  onLogout: () => void;
+  onNavigate?: (page: string) => void;
+  onLogout?: () => void;
 }
 
 export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
-  const published = getAllPublishedArticles();
-  const drafts = getAllDrafts();
-  const recentDrafts = drafts.slice(0, 5);
-  const galleryImages = getAllGalleryImages();
-  const recentImages = galleryImages.slice(0, 6);
+  const router = useRouter();
+  const nav = (page: string) =>
+    onNavigate ? onNavigate(page) : router.push(`/admin/${page}`);
+  const logout = async () => {
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/admin/login");
+      router.refresh();
+    }
+  };
+
+  const [publishedCount, setPublishedCount] = useState(0);
+  const [draftsCount, setDraftsCount] = useState(0);
+  const [recentDrafts, setRecentDrafts] = useState<AdminPostDto[]>([]);
+  const [galleryCount, setGalleryCount] = useState(0);
+  const [recentImages, setRecentImages] = useState<PublicMediaDto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      try {
+        setLoading(true);
+
+        const publishedRes = await getAdminPosts({ status: "published", page: 0, size: 1 });
+        setPublishedCount(publishedRes.totalElements);
+
+        const draftsRes = await getAdminPosts({ status: "draft", page: 0, size: 5 });
+        setDraftsCount(draftsRes.totalElements);
+        setRecentDrafts(draftsRes.content.slice(0, 5));
+
+        try {
+          const galleryRes = await getAdminMedia({ kind: "IMAGE", page: 0, size: 6 });
+          setGalleryCount(galleryRes.totalElements);
+          setRecentImages(galleryRes.content.slice(0, 6));
+        } catch (errorValue) {
+          console.warn("Gallery API not available:", errorValue);
+        }
+      } catch (errorValue: unknown) {
+        console.error("Failed to load dashboard data:", errorValue);
+        if (errorValue instanceof Error && errorValue.message?.includes("401")) {
+          router.push("/admin");
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboardData();
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Admin Header */}
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Edit3 className="w-5 h-5" />
-            <span className="font-medium">Admin</span>
+            <span className="font-medium">Quản trị</span>
           </div>
           <button
-            onClick={onLogout}
+            onClick={() => void logout()}
             className="flex items-center gap-2 meta hover:text-foreground transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            Logout
+            Đăng xuất
           </button>
         </div>
       </header>
 
       <div className="max-w-6xl mx-auto px-6 py-12">
-        {/* Page Title */}
-        <h1 className="text-3xl mb-12">Dashboard</h1>
+        <h1 className="text-3xl mb-12">Bảng điều khiển</h1>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {/* Published Count */}
           <div className="bg-card border border-border p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="section-label text-muted-foreground">Published</span>
+              <span className="section-label text-muted-foreground">Đã xuất bản</span>
               <FileText className="w-5 h-5 text-muted-foreground" />
             </div>
-            <div className="text-3xl font-medium">{published.length}</div>
+            <div className="text-3xl font-medium">{loading ? "..." : publishedCount}</div>
           </div>
 
-          {/* Drafts Count */}
           <div className="bg-card border border-border p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="section-label text-muted-foreground">Drafts</span>
+              <span className="section-label text-muted-foreground">Bản nháp</span>
               <FileText className="w-5 h-5 text-muted-foreground" />
             </div>
-            <div className="text-3xl font-medium">{drafts.length}</div>
+            <div className="text-3xl font-medium">{loading ? "..." : draftsCount}</div>
           </div>
 
-          {/* Quick Action */}
           <button
-            onClick={() => onNavigate('new-post')}
+            onClick={() => nav("posts/new")}
             className="bg-foreground text-background border border-foreground p-6 hover:opacity-90 transition-opacity text-left"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="section-label">New Post</span>
+              <span className="section-label">Bài viết mới</span>
               <FilePlus className="w-5 h-5" />
             </div>
-            <div className="text-lg">Create new article</div>
+            <div className="text-lg">Tạo bài viết mới</div>
           </button>
         </div>
 
-        {/* Quick Actions */}
         <div className="mb-12">
-          <h2 className="text-xl mb-6 pb-3 border-b border-border">Quick Actions</h2>
+          <h2 className="text-xl mb-6 pb-3 border-b border-border">Tác vụ nhanh</h2>
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => onNavigate('posts')}
+              onClick={() => nav("posts")}
               className="px-6 py-3 border border-border hover:border-foreground transition-colors"
             >
-              View All Posts
+              Xem tất cả bài viết
             </button>
             <button
-              onClick={() => onNavigate('new-post')}
+              onClick={() => nav("posts/new")}
               className="px-6 py-3 bg-foreground text-background hover:opacity-90 transition-opacity"
             >
-              New Post
+              Bài viết mới
             </button>
             <button
-              onClick={() => onNavigate('gallery-manager')}
+              onClick={() => nav("gallery")}
               className="px-6 py-3 border border-border hover:border-foreground transition-colors"
             >
-              Manage Gallery
+              Quản lý thư viện
             </button>
             <button
-              onClick={() => onNavigate('category-manager')}
+              onClick={() => nav("categories")}
               className="flex items-center gap-2 px-6 py-3 border border-border hover:border-foreground transition-colors"
             >
               <Tag className="w-4 h-4" />
-              Manage Categories
+              Quản lý chuyên mục
+            </button>
+            <button
+              onClick={() => nav("front-page")}
+              className="flex items-center gap-2 px-6 py-3 border border-border hover:border-foreground transition-colors"
+            >
+              <Layout className="w-4 h-4" />
+              Trang chủ
             </button>
           </div>
         </div>
 
-        {/* Recent Drafts */}
         {recentDrafts.length > 0 && (
           <div>
-            <h2 className="text-xl mb-6 pb-3 border-b border-border">Recent Drafts</h2>
+            <h2 className="text-xl mb-6 pb-3 border-b border-border">Bản nháp gần đây</h2>
             <div className="space-y-4">
-              {recentDrafts.map(draft => (
+              {recentDrafts.map((draft) => (
                 <div
                   key={draft.id}
                   className="flex items-center justify-between p-4 bg-card border border-border hover:border-foreground transition-colors cursor-pointer"
-                  onClick={() => onNavigate(`edit-post-${draft.id}`)}
+                  onClick={() => nav(`posts/${draft.id}`)}
                 >
                   <div>
-                    <div className="section-label text-muted-foreground text-xs mb-1">
-                      {draft.section}
-                    </div>
+                    <div className="section-label text-muted-foreground text-xs mb-1">{draft.section}</div>
                     <div className="font-medium">{draft.title}</div>
                   </div>
-                  <div className="meta text-muted-foreground">
-                    {draft.date}
-                  </div>
+                  <div className="meta text-muted-foreground">{draft.publishedAt || "Chưa có ngày"}</div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Recent Gallery Images */}
         {recentImages.length > 0 && (
           <div className="mt-12">
             <div className="flex items-center justify-between mb-6 pb-3 border-b border-border">
-              <h2 className="text-xl">Gallery Overview</h2>
+              <h2 className="text-xl">Tổng quan thư viện</h2>
               <button
-                onClick={() => onNavigate('gallery-manager')}
+                onClick={() => nav("gallery")}
                 className="meta text-muted-foreground hover:text-foreground transition-colors underline"
               >
-                View All ({galleryImages.length})
+                Xem tất cả ({loading ? "..." : galleryCount})
               </button>
             </div>
-            
-            {/* Gallery Stats */}
+
             <div className="bg-card border border-border p-6 mb-6">
               <div className="flex items-center justify-between mb-2">
-                <span className="section-label text-muted-foreground">Total Images</span>
-                <Image className="w-5 h-5 text-muted-foreground" />
+                <span className="section-label text-muted-foreground">Tổng số ảnh</span>
+                <ImageIcon className="w-5 h-5 text-muted-foreground" />
               </div>
-              <div className="text-3xl font-medium">{galleryImages.length}</div>
+              <div className="text-3xl font-medium">{loading ? "..." : galleryCount}</div>
             </div>
 
-            {/* Recent Images Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {recentImages.map(image => (
-                <div
-                  key={image.id}
-                  className="group cursor-pointer"
-                  onClick={() => onNavigate('gallery-manager')}
-                >
+              {recentImages.map((image) => (
+                <div key={image.id} className="group cursor-pointer" onClick={() => nav("gallery")}>
                   <div className="overflow-hidden mb-2 bg-secondary border border-border group-hover:border-foreground transition-colors">
-                    <img
+                    <NextImage
                       src={image.url}
-                      alt={image.caption || 'Gallery image'}
+                      alt={image.caption || image.title || "Ảnh thư viện"}
+                      width={image.width ?? 640}
+                      height={image.height ?? 480}
                       className="w-full h-32 object-cover group-hover:opacity-90 transition-opacity"
                     />
                   </div>
-                  {image.caption && (
-                    <div className="text-sm font-medium truncate">{image.caption}</div>
+                  {(image.caption || image.title) && (
+                    <div className="text-sm font-medium truncate">{image.caption || image.title}</div>
                   )}
                   <div className="meta text-muted-foreground text-xs">
-                    {image.category}
+                    {image.takenAt || image.createdDate || ""}
                   </div>
                 </div>
               ))}
