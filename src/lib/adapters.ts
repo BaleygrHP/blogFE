@@ -13,7 +13,7 @@ export function mapPostToArticle(
     section: options?.sectionLabel ?? String(post.section ?? "").trim(),
     title: post.title,
     subtitle: (post.subtitle ?? "").trim(),
-    author: "Test",
+    author: "Báleygr",
     date: post.publishedAt
       ? new Date(post.publishedAt).toLocaleDateString("vi-VN")
       : "",
