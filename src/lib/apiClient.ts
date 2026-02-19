@@ -9,9 +9,10 @@ import type {
 } from "./types";
 
 /**
- * API_BASE:
- *  - Server-side (SSR): call the backend directly
- *  - Client-side: call through Next.js route handlers (/api/*)
+ * URL resolution strategy:
+ * - Server-side: call BE directly via BE_BASE_URL (fallback NEXT_PUBLIC_BE_BASE_URL)
+ * - Client-side: call public APIs directly via NEXT_PUBLIC_BE_BASE_URL when present
+ * - Other client APIs (auth/admin): keep using FE /api route handlers
  */
 function normalizeBaseUrl(raw?: string): string {
   const input = String(raw || "").trim();
@@ -27,14 +28,22 @@ function normalizeBaseUrl(raw?: string): string {
   }
 }
 
-const BE_BASE_URL = normalizeBaseUrl(process.env.BE_BASE_URL) || "http://localhost:7055/newspaper-project";
+const SERVER_BE_BASE_URL =
+  normalizeBaseUrl(process.env.BE_BASE_URL || process.env.NEXT_PUBLIC_BE_BASE_URL) ||
+  "http://localhost:7055/newspaper-project";
+const CLIENT_PUBLIC_BE_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_BE_BASE_URL);
 
-function getApiBase(): string {
+function getApiBase(path: string): string {
   if (typeof window === "undefined") {
-    // Server side — call BE directly
-    return BE_BASE_URL;
+    return SERVER_BE_BASE_URL;
   }
-  // Client side — use route handlers
+
+  // On client, only public APIs call BE directly when a public base URL is provided.
+  // Auth/admin APIs keep using FE route handlers to preserve cookie + CSRF flow.
+  if (CLIENT_PUBLIC_BE_BASE_URL && path.startsWith("/api/public/")) {
+    return CLIENT_PUBLIC_BE_BASE_URL;
+  }
+
   return "";
 }
 
@@ -42,7 +51,7 @@ function buildUrl(
   path: string,
   query?: Record<string, string | number | boolean | undefined | null>
 ) {
-  const base = getApiBase();
+  const base = getApiBase(path);
   const url = new URL(`${base}${path}`, base || window.location.origin);
 
   if (query) {
@@ -251,3 +260,4 @@ export function getMe() {
     "/api/auth/me"
   );
 }
+
