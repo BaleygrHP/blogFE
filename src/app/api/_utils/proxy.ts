@@ -17,13 +17,11 @@ function normalizeBaseUrl(raw?: string): string {
   }
 }
 
-export const BE_BASE_URL = normalizeBaseUrl(
-  process.env.BE_BASE_URL || process.env.NEXT_PUBLIC_BE_BASE_URL
-);
+export const BACKEND_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_BE_BASE_URL);
 export const INTERNAL_PROXY_KEY = process.env.INTERNAL_PROXY_KEY || "";
 
-if (!BE_BASE_URL) {
-  console.warn("[api-proxy] Missing BE_BASE_URL (or NEXT_PUBLIC_BE_BASE_URL) env var");
+if (!BACKEND_BASE_URL) {
+  console.warn("[api-proxy] Missing NEXT_PUBLIC_BE_BASE_URL env var");
 }
 
 type ProxyOptions = {
@@ -85,7 +83,7 @@ function passthroughHeaders(from: Headers): Headers {
 }
 
 async function refreshAccessToken(refreshToken: string, req: NextRequest): Promise<AuthTokenResponse | null> {
-  if (!BE_BASE_URL || !refreshToken) return null;
+  if (!BACKEND_BASE_URL || !refreshToken) return null;
 
   const headers = withInternalProxyHeaders({
     "content-type": "application/json",
@@ -95,7 +93,7 @@ async function refreshAccessToken(refreshToken: string, req: NextRequest): Promi
   const userAgent = req.headers.get("user-agent");
   if (userAgent) headers.set("user-agent", userAgent);
 
-  const upstream = await fetch(`${BE_BASE_URL}/api/auth/refresh`, {
+  const upstream = await fetch(`${BACKEND_BASE_URL}/api/auth/refresh`, {
     method: "POST",
     headers,
     body: JSON.stringify({ refreshToken }),
@@ -144,9 +142,9 @@ export async function proxyToBE(
   bePath: string,
   options?: ProxyOptions
 ): Promise<NextResponse> {
-  if (!BE_BASE_URL) {
+  if (!BACKEND_BASE_URL) {
     return NextResponse.json(
-      { message: "Missing BE_BASE_URL env var on Frontend server" },
+      { message: "Missing NEXT_PUBLIC_BE_BASE_URL env var on Frontend server" },
       { status: 500 }
     );
   }
@@ -154,7 +152,7 @@ export async function proxyToBE(
   const method = req.method.toUpperCase();
   const url = new URL(req.url);
   const normalizedBePath = bePath.startsWith("/") ? bePath : `/${bePath}`;
-  const target = `${BE_BASE_URL}${normalizedBePath}${url.search || ""}`;
+  const target = `${BACKEND_BASE_URL}${normalizedBePath}${url.search || ""}`;
 
   const requireAuth =
     options?.requireAuth ??

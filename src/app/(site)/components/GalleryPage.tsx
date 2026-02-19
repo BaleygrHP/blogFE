@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
-import { getPublicGallery } from "@/lib/apiClient";
+import { getPublicGallery, resolvePublicUrl } from "@/lib/apiClient";
 import { GalleryImage, PublicMediaDto } from "@/lib/types";
 import { ALL_FILTER_VALUE, UI_TEXT } from "@/lib/i18n";
 
@@ -12,9 +12,9 @@ const IMAGES_PER_PAGE = 12;
 function toGalleryImage(media: PublicMediaDto): GalleryImage {
   return {
     id: media.id,
-    url: media.url,
+    url: resolvePublicUrl(media.url),
     mimeType: (media.mimeType || "").toLowerCase(),
-    downloadUrl: `/api/public/media/${media.id}/download`,
+    downloadUrl: resolvePublicUrl(`/api/public/media/${media.id}/download`),
     caption: media.caption ?? media.title ?? media.alt ?? undefined,
     location: media.location ?? undefined,
     date: media.takenAt ?? media.createdDate ?? media.createdAt ?? "",

@@ -2,8 +2,39 @@
 // Admin API client for backend operations
 
 import type { PageResponse, PostDto, SectionKey, MediaKind, PublicMediaDto } from "./types";
+import { resolvePublicUrl } from "./apiClient";
 
 const API_BASE = "/api/admin";
+
+function normalizeAdminPost(post: AdminPostDto): AdminPostDto {
+    if (!post?.coverImageUrl) return post;
+    return {
+        ...post,
+        coverImageUrl: resolvePublicUrl(post.coverImageUrl),
+    };
+}
+
+function normalizeAdminPostPage(page: PageResponse<AdminPostDto>): PageResponse<AdminPostDto> {
+    return {
+        ...page,
+        content: (page.content || []).map(normalizeAdminPost),
+    };
+}
+
+function normalizePublicMedia(media: PublicMediaDto): PublicMediaDto {
+    if (!media?.url) return media;
+    return {
+        ...media,
+        url: resolvePublicUrl(media.url),
+    };
+}
+
+function normalizePublicMediaPage(page: PageResponse<PublicMediaDto>): PageResponse<PublicMediaDto> {
+    return {
+        ...page,
+        content: (page.content || []).map(normalizePublicMedia),
+    };
+}
 
 function getCsrfToken(): string {
     if (typeof document === "undefined") return "";
@@ -111,30 +142,34 @@ export async function getAdminPosts(params?: {
     if (params?.page !== undefined) query.append("page", String(params.page));
     if (params?.size !== undefined) query.append("size", String(params.size));
 
-    return fetchJson<PageResponse<AdminPostDto>>(
+    const page = await fetchJson<PageResponse<AdminPostDto>>(
         `${API_BASE}/posts?${query.toString()}`
     );
+    return normalizeAdminPostPage(page);
 }
 
 export async function getAdminPostById(postId: string): Promise<AdminPostDto> {
-    return fetchJson<AdminPostDto>(`${API_BASE}/posts/${postId}`);
+    const post = await fetchJson<AdminPostDto>(`${API_BASE}/posts/${postId}`);
+    return normalizeAdminPost(post);
 }
 
 export async function createPost(data: PostCreateDto): Promise<AdminPostDto> {
-    return fetchJson<AdminPostDto>(`${API_BASE}/posts`, {
+    const post = await fetchJson<AdminPostDto>(`${API_BASE}/posts`, {
         method: "POST",
         body: JSON.stringify(data),
     });
+    return normalizeAdminPost(post);
 }
 
 export async function updatePost(
     postId: string,
     data: PostUpdateDto
 ): Promise<AdminPostDto> {
-    return fetchJson<AdminPostDto>(`${API_BASE}/posts/${postId}`, {
+    const post = await fetchJson<AdminPostDto>(`${API_BASE}/posts/${postId}`, {
         method: "PUT",
         body: JSON.stringify(data),
     });
+    return normalizeAdminPost(post);
 }
 
 export async function deletePost(postId: string): Promise<void> {
@@ -150,15 +185,17 @@ export async function deletePost(postId: string): Promise<void> {
 }
 
 export async function publishPost(postId: string): Promise<AdminPostDto> {
-    return fetchJson<AdminPostDto>(`${API_BASE}/posts/${postId}/publish`, {
+    const post = await fetchJson<AdminPostDto>(`${API_BASE}/posts/${postId}/publish`, {
         method: "POST",
     });
+    return normalizeAdminPost(post);
 }
 
 export async function unpublishPost(postId: string): Promise<AdminPostDto> {
-    return fetchJson<AdminPostDto>(`${API_BASE}/posts/${postId}/unpublish`, {
+    const post = await fetchJson<AdminPostDto>(`${API_BASE}/posts/${postId}/unpublish`, {
         method: "POST",
     });
+    return normalizeAdminPost(post);
 }
 
 // ===== SECTIONS API =====
@@ -251,9 +288,10 @@ export async function getAdminMedia(params?: {
     if (params?.page !== undefined) query.append("page", String(params.page));
     if (params?.size !== undefined) query.append("size", String(params.size));
 
-    return fetchJson<PageResponse<PublicMediaDto>>(
+    const page = await fetchJson<PageResponse<PublicMediaDto>>(
         `${API_BASE}/media?${query.toString()}`
     );
+    return normalizePublicMediaPage(page);
 }
 
 export async function getMediaCategories(): Promise<string[]> {
@@ -263,10 +301,11 @@ export async function getMediaCategories(): Promise<string[]> {
 export async function uploadMediaByUrl(
     data: MediaUploadDto
 ): Promise<PublicMediaDto> {
-    return fetchJson<PublicMediaDto>(`${API_BASE}/media/url`, {
+    const media = await fetchJson<PublicMediaDto>(`${API_BASE}/media/url`, {
         method: "POST",
         body: JSON.stringify(data),
     });
+    return normalizePublicMedia(media);
 }
 
 // Backward-compatible alias
@@ -296,7 +335,8 @@ export async function uploadMediaFile(data: MediaUploadFileDto): Promise<PublicM
         throw new Error(`API error ${res.status}: ${errorText}`);
     }
 
-    return res.json() as Promise<PublicMediaDto>;
+    const media = (await res.json()) as PublicMediaDto;
+    return normalizePublicMedia(media);
 }
 
 export interface MediaUpdateDto {
@@ -312,10 +352,11 @@ export async function updateMedia(
     mediaId: string,
     data: MediaUpdateDto
 ): Promise<PublicMediaDto> {
-    return fetchJson<PublicMediaDto>(`${API_BASE}/media/${mediaId}`, {
+    const media = await fetchJson<PublicMediaDto>(`${API_BASE}/media/${mediaId}`, {
         method: "PATCH",
         body: JSON.stringify(data),
     });
+    return normalizePublicMedia(media);
 }
 
 export async function deleteMedia(mediaId: string): Promise<void> {

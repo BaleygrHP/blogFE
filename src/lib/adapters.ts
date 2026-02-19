@@ -1,4 +1,5 @@
 import { PostDto, Article } from "./types";
+import { resolvePublicUrl } from "./apiClient";
 
 export function mapPostToArticle(
   post: PostDto,
@@ -7,6 +8,8 @@ export function mapPostToArticle(
     showCover?: boolean;
   }
 ): Article {
+  const coverImageUrl = (post.coverImageUrl || "").trim();
+
   return {
     id: post.id,
     slug: post.slug,
@@ -17,7 +20,10 @@ export function mapPostToArticle(
     date: post.publishedAt
       ? new Date(post.publishedAt).toLocaleDateString("vi-VN")
       : "",
-    coverImage: options?.showCover ? post.coverImageUrl ?? undefined : undefined,
+    coverImage:
+      options?.showCover && coverImageUrl
+        ? resolvePublicUrl(coverImageUrl)
+        : undefined,
     content: post.contentHtml || post.content || post.contentMd || "",
   };
 }

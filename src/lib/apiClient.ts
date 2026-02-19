@@ -10,7 +10,7 @@ import type {
 
 /**
  * URL resolution strategy:
- * - Server-side: call BE directly via BE_BASE_URL (fallback NEXT_PUBLIC_BE_BASE_URL)
+ * - Server-side: call BE directly via NEXT_PUBLIC_BE_BASE_URL
  * - Client-side: call public APIs directly via NEXT_PUBLIC_BE_BASE_URL when present
  * - Other client APIs (auth/admin): keep using FE /api route handlers
  */
@@ -28,20 +28,19 @@ function normalizeBaseUrl(raw?: string): string {
   }
 }
 
-const SERVER_BE_BASE_URL =
-  normalizeBaseUrl(process.env.BE_BASE_URL || process.env.NEXT_PUBLIC_BE_BASE_URL) ||
-  "http://localhost:7055/newspaper-project";
-const CLIENT_PUBLIC_BE_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_BE_BASE_URL);
+const NEXT_PUBLIC_BACKEND_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_BE_BASE_URL);
+const SERVER_BACKEND_BASE_URL =
+  NEXT_PUBLIC_BACKEND_BASE_URL || "http://localhost:7055/newspaper-project";
 
 function getApiBase(path: string): string {
   if (typeof window === "undefined") {
-    return SERVER_BE_BASE_URL;
+    return SERVER_BACKEND_BASE_URL;
   }
 
   // On client, only public APIs call BE directly when a public base URL is provided.
   // Auth/admin APIs keep using FE route handlers to preserve cookie + CSRF flow.
-  if (CLIENT_PUBLIC_BE_BASE_URL && path.startsWith("/api/public/")) {
-    return CLIENT_PUBLIC_BE_BASE_URL;
+  if (NEXT_PUBLIC_BACKEND_BASE_URL && path.startsWith("/api/public/")) {
+    return NEXT_PUBLIC_BACKEND_BASE_URL;
   }
 
   return "";
@@ -63,6 +62,36 @@ function buildUrl(
   }
 
   return url.toString();
+}
+
+function isAbsoluteHttpUrl(input: string): boolean {
+  return /^https?:\/\//i.test(input);
+}
+
+/**
+ * Resolve URL for public resources/endpoints.
+ * - Absolute URLs are returned as-is.
+ * - Relative `/api/public/*` paths are resolved with the same base strategy as fetchJson.
+ */
+export function resolvePublicUrl(pathOrUrl: string): string {
+  const input = String(pathOrUrl || "").trim();
+  if (!input) return "";
+
+  if (
+    isAbsoluteHttpUrl(input) ||
+    input.startsWith("blob:") ||
+    input.startsWith("data:")
+  ) {
+    return input;
+  }
+
+  const normalized = input.startsWith("/") ? input : `/${input}`;
+  const publicPathIndex = normalized.indexOf("/api/public/");
+  if (publicPathIndex < 0) {
+    return input;
+  }
+
+  return buildUrl(normalized.slice(publicPathIndex));
 }
 
 export async function fetchJson<T>(

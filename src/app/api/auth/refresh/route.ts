@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { BE_BASE_URL, withInternalProxyHeaders } from "@/app/api/_utils/proxy";
+import { BACKEND_BASE_URL, withInternalProxyHeaders } from "@/app/api/_utils/proxy";
 import { applyAuthCookies, clearAuthCookies } from "@/app/api/_utils/authCookies";
 import type { AuthTokenResponse } from "@/lib/types";
 
@@ -21,9 +21,9 @@ function parsePayload(raw: string): AuthTokenResponse | null {
   }
 }
 
-export async function POST(req: NextRequest) {
-  if (!BE_BASE_URL) {
-    return NextResponse.json({ message: "Missing BE_BASE_URL env var" }, { status: 500 });
+export async function POST() {
+  if (!BACKEND_BASE_URL) {
+    return NextResponse.json({ message: "Missing NEXT_PUBLIC_BE_BASE_URL env var" }, { status: 500 });
   }
 
   const cookieStore = await cookies();
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     return fail;
   }
 
-  const upstream = await fetch(`${BE_BASE_URL}/api/auth/refresh`, {
+  const upstream = await fetch(`${BACKEND_BASE_URL}/api/auth/refresh`, {
     method: "POST",
     headers: withInternalProxyHeaders({
       "content-type": "application/json",
