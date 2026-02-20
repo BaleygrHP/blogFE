@@ -104,13 +104,21 @@ export async function fetchJson<T>(
   init?: RequestInit
 ): Promise<T> {
   const url = buildUrl(path, query);
+  const method = (init?.method || "GET").toUpperCase();
+  const shouldSetJsonContentType =
+    method !== "GET" &&
+    method !== "HEAD" &&
+    init?.body !== undefined &&
+    !(init?.body instanceof FormData);
+
+  const headers = new Headers(init?.headers || {});
+  if (shouldSetJsonContentType && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   const res = await fetch(url, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
+    headers,
     cache: "no-store",
   });
 
