@@ -29,12 +29,13 @@ function normalizeBaseUrl(raw?: string): string {
 }
 
 const NEXT_PUBLIC_BACKEND_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_BE_BASE_URL);
-const SERVER_BACKEND_BASE_URL =
-  NEXT_PUBLIC_BACKEND_BASE_URL || "http://localhost:7055/newspaper-project";
 
 function getApiBase(path: string): string {
   if (typeof window === "undefined") {
-    return SERVER_BACKEND_BASE_URL;
+    if (!NEXT_PUBLIC_BACKEND_BASE_URL) {
+      throw new Error("Missing NEXT_PUBLIC_BE_BASE_URL env var");
+    }
+    return NEXT_PUBLIC_BACKEND_BASE_URL;
   }
 
   // On client, only public APIs call BE directly when a public base URL is provided.
@@ -51,7 +52,10 @@ function buildUrl(
   query?: Record<string, string | number | boolean | undefined | null>
 ) {
   const base = getApiBase(path);
-  const url = new URL(`${base}${path}`, base || window.location.origin);
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = base
+    ? new URL(`${base}${normalizedPath}`)
+    : new URL(normalizedPath, window.location.origin);
 
   if (query) {
     Object.entries(query).forEach(([key, value]) => {

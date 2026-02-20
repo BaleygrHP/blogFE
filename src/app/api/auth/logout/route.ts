@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { BACKEND_BASE_URL, withInternalProxyHeaders } from "@/app/api/_utils/proxy";
+import {
+  BACKEND_BASE_URL,
+  INTERNAL_PROXY_KEY,
+  missingProxyKeyResponse,
+  withInternalProxyHeaders,
+} from "@/app/api/_utils/proxy";
 import { clearAuthCookies } from "@/app/api/_utils/authCookies";
 
 export async function POST() {
@@ -9,15 +14,19 @@ export async function POST() {
   const accessToken = cookieStore.get("admin_at")?.value || "";
 
   if (BACKEND_BASE_URL && refreshToken) {
-    const headers = withInternalProxyHeaders({
-      "content-type": "application/json",
-      accept: "application/json",
-    });
-    if (accessToken) {
-      headers.set("Authorization", `Bearer ${accessToken}`);
+    if (!INTERNAL_PROXY_KEY) {
+      return missingProxyKeyResponse();
     }
 
     try {
+      const headers = withInternalProxyHeaders({
+        "content-type": "application/json",
+        accept: "application/json",
+      });
+      if (accessToken) {
+        headers.set("Authorization", `Bearer ${accessToken}`);
+      }
+
       await fetch(`${BACKEND_BASE_URL}/api/auth/logout`, {
         method: "POST",
         headers,

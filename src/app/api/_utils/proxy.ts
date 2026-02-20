@@ -18,10 +18,14 @@ function normalizeBaseUrl(raw?: string): string {
 }
 
 export const BACKEND_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_BE_BASE_URL);
-export const INTERNAL_PROXY_KEY = process.env.INTERNAL_PROXY_KEY || "";
+export const INTERNAL_PROXY_KEY = (process.env.INTERNAL_PROXY_KEY || "").trim();
 
 if (!BACKEND_BASE_URL) {
   console.warn("[api-proxy] Missing NEXT_PUBLIC_BE_BASE_URL env var");
+}
+
+if (!INTERNAL_PROXY_KEY) {
+  console.warn("[api-proxy] Missing INTERNAL_PROXY_KEY env var");
 }
 
 type ProxyOptions = {
@@ -32,11 +36,24 @@ type ProxyOptions = {
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+function isProxyKeyConfigured(): boolean {
+  return Boolean(INTERNAL_PROXY_KEY);
+}
+
+export function missingProxyKeyResponse(): NextResponse {
+  return NextResponse.json(
+    { message: "Missing INTERNAL_PROXY_KEY env var on Frontend server" },
+    { status: 500 }
+  );
+}
+
 export function withInternalProxyHeaders(headers?: HeadersInit): Headers {
-  const nextHeaders = new Headers(headers);
-  if (INTERNAL_PROXY_KEY) {
-    nextHeaders.set("X-Internal-Proxy-Key", INTERNAL_PROXY_KEY);
+  if (!isProxyKeyConfigured()) {
+    throw new Error("Missing INTERNAL_PROXY_KEY env var on Frontend server");
   }
+
+  const nextHeaders = new Headers(headers);
+  nextHeaders.set("X-Internal-Proxy-Key", INTERNAL_PROXY_KEY);
   return nextHeaders;
 }
 
@@ -83,7 +100,7 @@ function passthroughHeaders(from: Headers): Headers {
 }
 
 async function refreshAccessToken(refreshToken: string, req: NextRequest): Promise<AuthTokenResponse | null> {
-  if (!BACKEND_BASE_URL || !refreshToken) return null;
+  if (!BACKEND_BASE_URL || !refreshToken || !isProxyKeyConfigured()) return null;
 
   const headers = withInternalProxyHeaders({
     "content-type": "application/json",
@@ -147,6 +164,9 @@ export async function proxyToBE(
       { message: "Missing NEXT_PUBLIC_BE_BASE_URL env var on Frontend server" },
       { status: 500 }
     );
+  }
+  if (!isProxyKeyConfigured()) {
+    return missingProxyKeyResponse();
   }
 
   const method = req.method.toUpperCase();
