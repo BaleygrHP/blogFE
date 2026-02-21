@@ -5,10 +5,13 @@ import { subscribe } from "@/lib/networkActivity";
 import { UI_TEXT } from "@/lib/i18n";
 
 const SHOW_DELAY_MS = 150;
+const HIDE_DELAY_MS = 220;
+const MIN_VISIBLE_MS = 320;
 
 export function GlobalLoadingOverlay() {
   const [pendingCount, setPendingCount] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [visibleSince, setVisibleSince] = useState<number | null>(null);
 
   useEffect(() => subscribe(setPendingCount), []);
 
@@ -16,20 +19,28 @@ export function GlobalLoadingOverlay() {
     let timer = 0;
 
     if (pendingCount <= 0) {
+      const elapsedVisible = visibleSince ? Date.now() - visibleSince : 0;
+      const minRemain = Math.max(0, MIN_VISIBLE_MS - elapsedVisible);
+      const hideAfter = Math.max(HIDE_DELAY_MS, minRemain);
+
       timer = window.setTimeout(() => {
         setVisible(false);
-      }, 0);
+        setVisibleSince(null);
+      }, hideAfter);
       return () => window.clearTimeout(timer);
     }
 
+    if (visible) return;
+
     timer = window.setTimeout(() => {
       setVisible(true);
+      setVisibleSince(Date.now());
     }, SHOW_DELAY_MS);
 
     return () => window.clearTimeout(timer);
-  }, [pendingCount]);
+  }, [pendingCount, visible, visibleSince]);
 
-  const shouldRender = useMemo(() => visible && pendingCount > 0, [visible, pendingCount]);
+  const shouldRender = useMemo(() => visible, [visible]);
   if (!shouldRender) return null;
 
   return (

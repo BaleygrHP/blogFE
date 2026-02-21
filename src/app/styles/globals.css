@@ -668,7 +668,7 @@
   }
 
   .global-loader-pill {
-    --pill: var(--muted);
+    --pill: var(--muted-foreground);
     --ball: var(--accent-foreground);
     position: relative;
     width: 75px;
