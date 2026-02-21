@@ -49,7 +49,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
         setRecentDrafts(draftsRes.content.slice(0, 5));
 
         try {
-          const galleryRes = await getAdminMedia({ kind: "IMAGE", page: 0, size: 6 });
+          const galleryRes = await getAdminMedia({ kind: "IMAGE", active: true, page: 0, size: 6 });
           setGalleryCount(galleryRes.totalElements);
           setRecentImages(galleryRes.content.slice(0, 6));
         } catch (errorValue) {

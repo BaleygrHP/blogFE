@@ -84,6 +84,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
         setLoading(true);
         const response = await getAdminMedia({
           kind: "IMAGE",
+          active: true,
           page: currentPage,
           size: IMAGES_PER_PAGE,
         });
@@ -152,6 +153,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
 
       const response = await getAdminMedia({
         kind: "IMAGE",
+        active: true,
         page: currentPage,
         size: IMAGES_PER_PAGE,
       });
@@ -188,6 +190,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
 
       const response = await getAdminMedia({
         kind: "IMAGE",
+        active: true,
         page: currentPage,
         size: IMAGES_PER_PAGE,
       });
@@ -198,7 +201,13 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
       alert("Đã xóa ảnh thành công.");
     } catch (errorValue) {
       console.error("Failed to delete image:", errorValue);
-      alert("Không thể xóa ảnh. Vui lòng thử lại.");
+      const message =
+        errorValue instanceof Error ? errorValue.message : String(errorValue ?? "");
+      if (message.includes("API error 403")) {
+        alert("Bạn không có quyền xóa ảnh. Cần tài khoản ADMIN.");
+      } else {
+        alert("Không thể xóa ảnh. Vui lòng thử lại.");
+      }
     }
   };
 
@@ -221,6 +230,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
 
       const response = await getAdminMedia({
         kind: "IMAGE",
+        active: true,
         page: currentPage,
         size: IMAGES_PER_PAGE,
       });

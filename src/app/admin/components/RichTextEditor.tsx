@@ -1,7 +1,15 @@
 "use client";
 
 import { Node, mergeAttributes } from "@tiptap/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -23,8 +31,10 @@ import {
   Redo2,
   Link2,
   Image as ImageIcon,
+  FileUp,
 } from "lucide-react";
 import { uploadMediaFile } from "@/lib/adminApiClient";
+import { renderMathInContainer } from "@/lib/renderMath";
 import type { EditorInitialContent, RichEditorSnapshot } from "@/lib/editorContent";
 
 type RichTextEditorProps = {
@@ -39,10 +49,16 @@ type ToolbarButtonProps = {
   isActive?: boolean;
   onClick: () => void;
   disabled?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
-function ToolbarButton({ title, isActive, onClick, disabled, children }: ToolbarButtonProps) {
+function ToolbarButton({
+  title,
+  isActive,
+  onClick,
+  disabled,
+  children,
+}: ToolbarButtonProps) {
   return (
     <button
       type="button"
@@ -72,6 +88,34 @@ function normalizeLink(url: string): string {
   return `https://${trimmed}`;
 }
 
+function sanitizeMathFormula(raw: string): string {
+  let next = raw.trim();
+  if (!next) return "";
+
+  if (next.startsWith("$$") && next.endsWith("$$") && next.length > 4) {
+    next = next.slice(2, -2).trim();
+  } else if (next.startsWith("$") && next.endsWith("$") && next.length > 2) {
+    next = next.slice(1, -1).trim();
+  }
+
+  return next;
+}
+
+function toMediaDownloadUrl(mediaId: string, contentUrl?: string | null): string {
+  if (!contentUrl) return `/api/public/media/${mediaId}/download`;
+  try {
+    const parsed = new URL(contentUrl, window.location.origin);
+    if (parsed.pathname.endsWith("/content")) {
+      parsed.pathname = `${parsed.pathname.slice(0, -"/content".length)}/download`;
+    } else {
+      parsed.pathname = `/api/public/media/${mediaId}/download`;
+    }
+    return parsed.toString();
+  } catch {
+    return `/api/public/media/${mediaId}/download`;
+  }
+}
+
 const ImageNode = Node.create({
   name: "image",
   group: "block",
@@ -92,16 +136,130 @@ const ImageNode = Node.create({
   },
 });
 
+const MathInlineNode = Node.create({
+  name: "mathInline",
+  group: "inline",
+  inline: true,
+  atom: true,
+  selectable: true,
+  addAttributes() {
+    return {
+      formula: {
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-math-inline") || "",
+        renderHTML: (attributes) => ({
+          "data-math-inline": attributes.formula || "",
+        }),
+      },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "span[data-math-inline]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, {
+        class: "math-inline-node",
+        contenteditable: "false",
+      }),
+    ];
+  },
+  addNodeView() {
+    return ({ node }) => {
+      const dom = document.createElement("span");
+      dom.className = "math-inline-node";
+      dom.contentEditable = "false";
+
+      const setFormula = (formula: string) => {
+        dom.innerHTML = "";
+        dom.setAttribute("data-math-inline", formula);
+        renderMathInContainer(dom);
+        if (!formula) dom.textContent = "$?$";
+      };
+
+      setFormula(String(node.attrs.formula || ""));
+
+      return {
+        dom,
+        update(updatedNode) {
+          if (updatedNode.type.name !== "mathInline") return false;
+          setFormula(String(updatedNode.attrs.formula || ""));
+          return true;
+        },
+      };
+    };
+  },
+});
+
+const MathBlockNode = Node.create({
+  name: "mathBlock",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      formula: {
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-math-block") || "",
+        renderHTML: (attributes) => ({
+          "data-math-block": attributes.formula || "",
+        }),
+      },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "div[data-math-block]" }, { tag: "span[data-math-block]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        class: "math-block-node",
+        contenteditable: "false",
+      }),
+    ];
+  },
+  addNodeView() {
+    return ({ node }) => {
+      const dom = document.createElement("div");
+      dom.className = "math-block-node";
+      dom.contentEditable = "false";
+
+      const setFormula = (formula: string) => {
+        dom.innerHTML = "";
+        dom.setAttribute("data-math-block", formula);
+        renderMathInContainer(dom);
+        if (!formula) dom.textContent = "$$?$$";
+      };
+
+      setFormula(String(node.attrs.formula || ""));
+
+      return {
+        dom,
+        update(updatedNode) {
+          if (updatedNode.type.name !== "mathBlock") return false;
+          setFormula(String(updatedNode.attrs.formula || ""));
+          return true;
+        },
+      };
+    };
+  },
+});
+
 export function RichTextEditor({
   initialContent,
   onChange,
   disabled = false,
-  placeholder = "Viết nội dung tại đây...",
+  placeholder = "Write content here...",
 }: RichTextEditorProps) {
   const initialContentKey = useMemo(() => serializeInitialContent(initialContent), [initialContent]);
   const lastAppliedRef = useRef<string>("");
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const documentInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   const emitSnapshot = useCallback(
     (instance: Editor) => {
@@ -123,6 +281,8 @@ export function RichTextEditor({
         heading: { levels: [1, 2, 3] },
       }),
       ImageNode,
+      MathInlineNode,
+      MathBlockNode,
       Link.configure({
         autolink: true,
         linkOnPaste: true,
@@ -159,7 +319,7 @@ export function RichTextEditor({
   const handleSetLink = () => {
     if (!editor || disabled) return;
     const previousUrl = String(editor.getAttributes("link").href ?? "");
-    const input = window.prompt("Nhập URL", previousUrl || "https://");
+    const input = window.prompt("Enter URL", previousUrl || "https://");
     if (input === null) return;
 
     const url = normalizeLink(input);
@@ -174,7 +334,7 @@ export function RichTextEditor({
   const handleInsertImageByUrl = () => {
     if (!editor || disabled) return;
 
-    const input = window.prompt("Nhập URL ảnh", "https://");
+    const input = window.prompt("Enter image URL", "https://");
     if (input === null) return;
 
     const src = input.trim();
@@ -192,9 +352,7 @@ export function RichTextEditor({
     imageInputRef.current?.click();
   };
 
-  const handleUploadImageFile = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleUploadImageFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     event.target.value = "";
     if (!file || !editor || disabled) return;
@@ -222,25 +380,89 @@ export function RichTextEditor({
         .run();
     } catch (errorValue) {
       console.error("Failed to upload image for editor:", errorValue);
-      alert("Không thể tải ảnh lên. Vui lòng thử lại.");
+      alert("Cannot upload image. Please try again.");
     } finally {
       setUploadingImage(false);
     }
   };
 
+  const handlePickDocumentFile = () => {
+    if (disabled || uploadingDocument) return;
+    documentInputRef.current?.click();
+  };
+
+  const handleUploadDocumentFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    if (!file || !editor || disabled) return;
+
+    try {
+      setUploadingDocument(true);
+      const uploaded = await uploadMediaFile({
+        file,
+        kind: "FILE",
+        title: file.name,
+      });
+
+      const downloadUrl = toMediaDownloadUrl(uploaded.id, uploaded.url);
+      const label = uploaded.title || uploaded.originalFileName || file.name;
+
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: label,
+              marks: [
+                {
+                  type: "link",
+                  attrs: {
+                    href: downloadUrl,
+                  },
+                },
+              ],
+            },
+          ],
+        })
+        .run();
+    } catch (errorValue) {
+      console.error("Failed to upload file for editor:", errorValue);
+      alert("Cannot upload file. Please try again.");
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleInsertInlineMath = () => {
+    if (!editor || disabled) return;
+    const input = window.prompt("Inline math formula (without $...$)", "a+b=c");
+    if (input === null) return;
+    const formula = sanitizeMathFormula(input);
+    if (!formula) return;
+    editor.chain().focus().insertContent({ type: "mathInline", attrs: { formula } }).run();
+  };
+
+  const handleInsertBlockMath = () => {
+    if (!editor || disabled) return;
+    const input = window.prompt("Block math formula (without $$...$$)", "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}");
+    if (input === null) return;
+    const formula = sanitizeMathFormula(input);
+    if (!formula) return;
+    editor.chain().focus().insertContent({ type: "mathBlock", attrs: { formula } }).run();
+  };
+
   if (!editor) {
-    return (
-      <div className="editor-shell p-4 text-sm text-muted-foreground">
-        Đang tải trình soạn thảo...
-      </div>
-    );
+    return <div className="editor-shell p-4 text-sm text-muted-foreground">Loading editor...</div>;
   }
 
   return (
     <div className="editor-shell">
       <div className="editor-toolbar">
         <ToolbarButton
-          title="In đậm"
+          title="Bold"
           isActive={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
           disabled={disabled || !editor.can().chain().focus().toggleBold().run()}
@@ -248,7 +470,7 @@ export function RichTextEditor({
           <Bold className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="In nghiêng"
+          title="Italic"
           isActive={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           disabled={disabled || !editor.can().chain().focus().toggleItalic().run()}
@@ -256,7 +478,7 @@ export function RichTextEditor({
           <Italic className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Gạch chân"
+          title="Underline"
           isActive={editor.isActive("underline")}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           disabled={disabled}
@@ -265,7 +487,7 @@ export function RichTextEditor({
         </ToolbarButton>
 
         <ToolbarButton
-          title="Tiêu đề 1"
+          title="Heading 1"
           isActive={editor.isActive("heading", { level: 1 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           disabled={disabled}
@@ -273,7 +495,7 @@ export function RichTextEditor({
           <Heading1 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Tiêu đề 2"
+          title="Heading 2"
           isActive={editor.isActive("heading", { level: 2 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           disabled={disabled}
@@ -281,7 +503,7 @@ export function RichTextEditor({
           <Heading2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Tiêu đề 3"
+          title="Heading 3"
           isActive={editor.isActive("heading", { level: 3 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
           disabled={disabled}
@@ -290,7 +512,7 @@ export function RichTextEditor({
         </ToolbarButton>
 
         <ToolbarButton
-          title="Danh sách chấm"
+          title="Bullet list"
           isActive={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           disabled={disabled}
@@ -298,7 +520,7 @@ export function RichTextEditor({
           <List className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Danh sách số"
+          title="Ordered list"
           isActive={editor.isActive("orderedList")}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           disabled={disabled}
@@ -306,7 +528,7 @@ export function RichTextEditor({
           <ListOrdered className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Trích dẫn"
+          title="Block quote"
           isActive={editor.isActive("blockquote")}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           disabled={disabled}
@@ -314,7 +536,7 @@ export function RichTextEditor({
           <Quote className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Khối mã"
+          title="Code block"
           isActive={editor.isActive("codeBlock")}
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           disabled={disabled}
@@ -322,43 +544,47 @@ export function RichTextEditor({
           <Code2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Đường kẻ ngang"
+          title="Horizontal rule"
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           disabled={disabled}
         >
           <Minus className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton
-          title="Liên kết"
-          isActive={editor.isActive("link")}
-          onClick={handleSetLink}
-          disabled={disabled}
-        >
+        <ToolbarButton title="Link" isActive={editor.isActive("link")} onClick={handleSetLink} disabled={disabled}>
           <Link2 className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton
-          title="Chèn ảnh bằng URL"
-          onClick={handleInsertImageByUrl}
-          disabled={disabled}
-        >
+        <ToolbarButton title="Insert image URL" onClick={handleInsertImageByUrl} disabled={disabled}>
           <ImageIcon className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title={uploadingImage ? "Đang tải ảnh..." : "Tải ảnh từ máy"}
+          title={uploadingImage ? "Uploading image..." : "Upload image"}
           onClick={handlePickImageFile}
           disabled={disabled || uploadingImage}
         >
           <ImageIcon className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Hoàn tác"
+          title={uploadingDocument ? "Uploading file..." : "Upload DOC/DOCX/PDF"}
+          onClick={handlePickDocumentFile}
+          disabled={disabled || uploadingDocument}
+        >
+          <FileUp className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton title="Insert inline math" onClick={handleInsertInlineMath} disabled={disabled}>
+          <span className="text-xs font-semibold">$x$</span>
+        </ToolbarButton>
+        <ToolbarButton title="Insert block math" onClick={handleInsertBlockMath} disabled={disabled}>
+          <span className="text-xs font-semibold">$$</span>
+        </ToolbarButton>
+        <ToolbarButton
+          title="Undo"
           onClick={() => editor.chain().focus().undo().run()}
           disabled={disabled || !editor.can().chain().focus().undo().run()}
         >
           <Undo2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
-          title="Làm lại"
+          title="Redo"
           onClick={() => editor.chain().focus().redo().run()}
           disabled={disabled || !editor.can().chain().focus().redo().run()}
         >
@@ -372,6 +598,13 @@ export function RichTextEditor({
         accept="image/*"
         className="hidden"
         onChange={handleUploadImageFile}
+      />
+      <input
+        ref={documentInputRef}
+        type="file"
+        accept=".doc,.docx,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+        className="hidden"
+        onChange={handleUploadDocumentFile}
       />
 
       <EditorContent editor={editor} className="editor-content" />

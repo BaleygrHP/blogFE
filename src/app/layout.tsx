@@ -1,4 +1,5 @@
 import "@/app/styles/globals.css";
+import "katex/dist/katex.min.css";
 import { Inter, Lora } from "next/font/google";
 import { Providers } from "./providers";
 

@@ -280,11 +280,13 @@ export interface MediaUploadFileDto {
 
 export async function getAdminMedia(params?: {
     kind?: MediaKind;
+    active?: boolean;
     page?: number;
     size?: number;
 }): Promise<PageResponse<PublicMediaDto>> {
     const query = new URLSearchParams();
     if (params?.kind) query.append("kind", params.kind);
+    if (params?.active !== undefined) query.append("active", String(params.active));
     if (params?.page !== undefined) query.append("page", String(params.page));
     if (params?.size !== undefined) query.append("size", String(params.size));
 
