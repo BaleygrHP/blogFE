@@ -207,8 +207,36 @@
     padding-left: 1.5rem;
   }
 
+  .prose ul {
+    list-style: disc outside;
+  }
+
+  .prose ol {
+    list-style: decimal outside;
+  }
+
+  .prose ul ul {
+    list-style-type: circle;
+  }
+
+  .prose ul ul ul {
+    list-style-type: square;
+  }
+
+  .prose ol ol {
+    list-style-type: lower-alpha;
+  }
+
+  .prose ol ol ol {
+    list-style-type: lower-roman;
+  }
+
   .prose li {
     margin-bottom: 0.5em;
+  }
+
+  .prose li::marker {
+    color: var(--muted-foreground);
   }
 
   .prose ul.contains-task-list {
@@ -428,8 +456,36 @@
     padding-left: 1.35rem;
   }
 
+  .editor-content .ProseMirror ul {
+    list-style: disc outside;
+  }
+
+  .editor-content .ProseMirror ol {
+    list-style: decimal outside;
+  }
+
+  .editor-content .ProseMirror ul ul {
+    list-style-type: circle;
+  }
+
+  .editor-content .ProseMirror ul ul ul {
+    list-style-type: square;
+  }
+
+  .editor-content .ProseMirror ol ol {
+    list-style-type: lower-alpha;
+  }
+
+  .editor-content .ProseMirror ol ol ol {
+    list-style-type: lower-roman;
+  }
+
   .editor-content .ProseMirror li {
     margin: 0.35rem 0;
+  }
+
+  .editor-content .ProseMirror li::marker {
+    color: var(--muted-foreground);
   }
 
   .editor-content .ProseMirror ul.contains-task-list {
