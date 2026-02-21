@@ -618,3 +618,161 @@
     text-underline-offset: 2px;
   }
 }
+
+@layer components {
+  .editor-toolbar-floating {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 120;
+    max-width: calc(100vw - 1rem);
+    border: 1px solid var(--border);
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.14);
+    border-radius: 0.25rem;
+  }
+
+  .editor-toolbar-spacer {
+    width: 100%;
+  }
+
+  .editor-drag-handle {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    font-size: 0.75rem;
+    letter-spacing: 0.03em;
+    width: auto;
+    padding: 0 0.45rem;
+  }
+
+  .editor-drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .global-loader-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--background);
+  }
+
+  .global-loader-content {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .global-loader-pill {
+    --pill: var(--muted);
+    --ball: var(--accent-foreground);
+    position: relative;
+    width: 75px;
+    height: 100px;
+    background-repeat: no-repeat;
+    background-image:
+      linear-gradient(var(--pill) 50px, transparent 0),
+      linear-gradient(var(--pill) 50px, transparent 0),
+      linear-gradient(var(--pill) 50px, transparent 0),
+      linear-gradient(var(--pill) 50px, transparent 0),
+      linear-gradient(var(--pill) 50px, transparent 0);
+    background-size: 8px 100%;
+    background-position: 0 90px, 15px 78px, 30px 66px, 45px 58px, 60px 50px;
+    animation: globalPillerPushUp 4s linear infinite;
+  }
+
+  .global-loader-pill::after {
+    content: "";
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    background: var(--ball);
+    border-radius: 50%;
+    animation: globalBallStepUp 4s linear infinite;
+  }
+}
+
+@keyframes globalPillerPushUp {
+  0%,
+  40%,
+  100% {
+    background-position: 0 90px, 15px 78px, 30px 66px, 45px 58px, 60px 50px;
+  }
+  50%,
+  90% {
+    background-position: 0 50px, 15px 58px, 30px 66px, 45px 78px, 60px 90px;
+  }
+}
+
+@keyframes globalBallStepUp {
+  0% {
+    transform: translate(0, 0);
+  }
+  5% {
+    transform: translate(8px, -14px);
+  }
+  10% {
+    transform: translate(15px, -10px);
+  }
+  17% {
+    transform: translate(23px, -24px);
+  }
+  20% {
+    transform: translate(30px, -20px);
+  }
+  27% {
+    transform: translate(38px, -34px);
+  }
+  30% {
+    transform: translate(45px, -30px);
+  }
+  37% {
+    transform: translate(53px, -44px);
+  }
+  40% {
+    transform: translate(60px, -40px);
+  }
+  50% {
+    transform: translate(60px, 0);
+  }
+  57% {
+    transform: translate(53px, -14px);
+  }
+  60% {
+    transform: translate(45px, -10px);
+  }
+  67% {
+    transform: translate(37px, -24px);
+  }
+  70% {
+    transform: translate(30px, -20px);
+  }
+  77% {
+    transform: translate(22px, -34px);
+  }
+  80% {
+    transform: translate(15px, -30px);
+  }
+  87% {
+    transform: translate(7px, -44px);
+  }
+  90% {
+    transform: translate(0, -40px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .global-loader-pill,
+  .global-loader-pill::after {
+    animation: none;
+  }
+}

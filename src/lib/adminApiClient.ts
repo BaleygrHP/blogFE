@@ -3,6 +3,7 @@
 
 import type { PageResponse, PostDto, SectionKey, MediaKind, PublicMediaDto } from "./types";
 import { resolvePublicUrl } from "./apiClient";
+import { trackedFetch } from "./trackedFetch";
 
 const API_BASE = "/api/admin";
 
@@ -77,7 +78,7 @@ async function fetchJson<T>(
         headers.set("Content-Type", "application/json");
     }
 
-    const res = await fetch(path, {
+    const res = await trackedFetch(path, {
         ...options,
         headers,
         cache: "no-store",
@@ -173,7 +174,7 @@ export async function updatePost(
 }
 
 export async function deletePost(postId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/posts/${postId}`, {
+    const res = await trackedFetch(`${API_BASE}/posts/${postId}`, {
         method: "DELETE",
         headers: withCsrfHeader(),
         cache: "no-store",
@@ -324,7 +325,7 @@ export async function uploadMediaFile(data: MediaUploadFileDto): Promise<PublicM
     if (data.takenAt) form.append("takenAt", data.takenAt);
     if (data.category) form.append("category", data.category);
 
-    const res = await fetch(`${API_BASE}/media/upload`, {
+    const res = await trackedFetch(`${API_BASE}/media/upload`, {
         method: "POST",
         headers: withCsrfHeader(),
         body: form,
@@ -362,7 +363,7 @@ export async function updateMedia(
 }
 
 export async function deleteMedia(mediaId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/media/${mediaId}`, {
+    const res = await trackedFetch(`${API_BASE}/media/${mediaId}`, {
         method: "DELETE",
         headers: withCsrfHeader(),
         cache: "no-store",

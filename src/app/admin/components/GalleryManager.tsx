@@ -14,6 +14,7 @@ import {
   type MediaUploadDto,
   type MediaUpdateDto,
 } from "@/lib/adminApiClient";
+import { trackedFetch } from "@/lib/trackedFetch";
 import type { PublicMediaDto } from "@/lib/types";
 import { UI_TEXT } from "@/lib/i18n";
 
@@ -34,7 +35,7 @@ export function GalleryManager({ onNavigate, onLogout }: GalleryManagerProps) {
       return;
     }
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await trackedFetch("/api/auth/logout", { method: "POST" });
     } finally {
       router.push("/");
       router.refresh();

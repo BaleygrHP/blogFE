@@ -5,6 +5,7 @@ import { FileText, FilePlus, LogOut, Edit3, Image as ImageIcon, Tag, Layout } fr
 import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { getAdminPosts, getAdminMedia, type AdminPostDto } from "@/lib/adminApiClient";
+import { trackedFetch } from "@/lib/trackedFetch";
 import type { PublicMediaDto } from "@/lib/types";
 
 interface DashboardProps {
@@ -22,7 +23,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
       return;
     }
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await trackedFetch("/api/auth/logout", { method: "POST" });
     } finally {
       router.push("/");
       router.refresh();

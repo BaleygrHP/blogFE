@@ -20,6 +20,7 @@ import {
   toggleSection,
   type SectionDto,
 } from "@/lib/adminApiClient";
+import { trackedFetch } from "@/lib/trackedFetch";
 
 interface CategoryManagerProps {
   onNavigate?: (page: string) => void;
@@ -37,7 +38,7 @@ export function CategoryManager({ onNavigate, onLogout }: CategoryManagerProps) 
     }
 
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await trackedFetch("/api/auth/logout", { method: "POST" });
     } finally {
       router.push("/");
       router.refresh();

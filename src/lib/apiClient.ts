@@ -7,6 +7,7 @@ import type {
   PublicMediaDto,
   SectionKey,
 } from "./types";
+import { trackedFetch } from "./trackedFetch";
 
 /**
  * URL resolution strategy:
@@ -116,7 +117,7 @@ export async function fetchJson<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(url, {
+  const res = await trackedFetch(url, {
     ...init,
     headers,
     cache: "no-store",

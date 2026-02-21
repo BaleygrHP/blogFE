@@ -62,6 +62,16 @@ type ToolbarButtonProps = {
   children: ReactNode;
 };
 
+type ToolbarMode = "docked" | "floating";
+type ToolbarPosition = {
+  x: number;
+  y: number;
+};
+
+const TOOLBAR_LAYOUT_STORAGE_KEY = "blogfe.richTextToolbarLayout.v1";
+const TOOLBAR_FLOAT_MARGIN = 8;
+const DEFAULT_FLOATING_POSITION: ToolbarPosition = { x: 16, y: 16 };
+
 const FONT_SIZE_OPTIONS = [
   { label: "Mặc định", value: "default" },
   { label: "14px", value: "14px" },
@@ -290,10 +300,16 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const initialContentKey = useMemo(() => serializeInitialContent(initialContent), [initialContent]);
   const lastAppliedRef = useRef<string>("");
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const dragOffsetRef = useRef<ToolbarPosition | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const documentInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [toolbarMode, setToolbarMode] = useState<ToolbarMode>("docked");
+  const [toolbarPosition, setToolbarPosition] = useState<ToolbarPosition>(DEFAULT_FLOATING_POSITION);
+  const [toolbarSpacerHeight, setToolbarSpacerHeight] = useState(0);
+  const [toolbarLayoutReady, setToolbarLayoutReady] = useState(false);
 
   const emitSnapshot = useCallback(
     (instance: Editor) => {
@@ -361,6 +377,166 @@ export function RichTextEditor({
     lastAppliedRef.current = initialContentKey;
     emitSnapshot(editor);
   }, [editor, initialContent, initialContentKey, emitSnapshot]);
+
+  const clampToolbarPosition = useCallback((position: ToolbarPosition): ToolbarPosition => {
+    if (typeof window === "undefined") return position;
+
+    const toolbarWidth = toolbarRef.current?.offsetWidth ?? 0;
+    const toolbarHeight = toolbarRef.current?.offsetHeight ?? 0;
+    const maxX = Math.max(
+      TOOLBAR_FLOAT_MARGIN,
+      window.innerWidth - toolbarWidth - TOOLBAR_FLOAT_MARGIN
+    );
+    const maxY = Math.max(
+      TOOLBAR_FLOAT_MARGIN,
+      window.innerHeight - toolbarHeight - TOOLBAR_FLOAT_MARGIN
+    );
+
+    return {
+      x: Math.min(maxX, Math.max(TOOLBAR_FLOAT_MARGIN, position.x)),
+      y: Math.min(maxY, Math.max(TOOLBAR_FLOAT_MARGIN, position.y)),
+    };
+  }, []);
+
+  const handleToolbarPointerMove = useCallback(
+    (event: PointerEvent) => {
+      const offset = dragOffsetRef.current;
+      if (!offset) return;
+      event.preventDefault();
+
+      const nextPosition = clampToolbarPosition({
+        x: event.clientX - offset.x,
+        y: event.clientY - offset.y,
+      });
+      setToolbarPosition(nextPosition);
+    },
+    [clampToolbarPosition]
+  );
+
+  const finishToolbarDrag = useCallback(() => {
+    if (typeof window === "undefined") return;
+    dragOffsetRef.current = null;
+    window.removeEventListener("pointermove", handleToolbarPointerMove);
+    window.removeEventListener("pointerup", finishToolbarDrag);
+    window.removeEventListener("pointercancel", finishToolbarDrag);
+  }, [handleToolbarPointerMove]);
+
+  const handleToolbarDragStart = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    event.preventDefault();
+
+    const rect = toolbarRef.current?.getBoundingClientRect();
+    const basePosition =
+      toolbarMode === "floating"
+        ? toolbarPosition
+        : {
+            x: rect?.left ?? DEFAULT_FLOATING_POSITION.x,
+            y: rect?.top ?? DEFAULT_FLOATING_POSITION.y,
+          };
+
+    const nextPosition = clampToolbarPosition(basePosition);
+    setToolbarMode("floating");
+    setToolbarPosition(nextPosition);
+    dragOffsetRef.current = {
+      x: event.clientX - nextPosition.x,
+      y: event.clientY - nextPosition.y,
+    };
+
+    if (typeof window === "undefined") return;
+    window.addEventListener("pointermove", handleToolbarPointerMove, { passive: false });
+    window.addEventListener("pointerup", finishToolbarDrag);
+    window.addEventListener("pointercancel", finishToolbarDrag);
+  };
+
+  const handleDockToolbar = () => {
+    finishToolbarDrag();
+    setToolbarMode("docked");
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.localStorage.getItem(TOOLBAR_LAYOUT_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        mode?: ToolbarMode;
+        x?: number;
+        y?: number;
+      };
+
+      if (parsed.mode === "floating") {
+        setToolbarMode("floating");
+        setToolbarPosition({
+          x: Number.isFinite(parsed.x) ? Number(parsed.x) : DEFAULT_FLOATING_POSITION.x,
+          y: Number.isFinite(parsed.y) ? Number(parsed.y) : DEFAULT_FLOATING_POSITION.y,
+        });
+      }
+    } catch (errorValue) {
+      console.warn("Failed to restore toolbar layout:", errorValue);
+    } finally {
+      setToolbarLayoutReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const node = toolbarRef.current;
+    if (!node) return;
+
+    const updateHeight = () => {
+      setToolbarSpacerHeight(node.offsetHeight);
+    };
+    updateHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateHeight);
+      return () => window.removeEventListener("resize", updateHeight);
+    }
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [toolbarMode]);
+
+  useEffect(() => {
+    if (toolbarMode !== "floating") return;
+    setToolbarPosition((previous) => clampToolbarPosition(previous));
+
+    const handleResize = () => {
+      setToolbarPosition((previous) => clampToolbarPosition(previous));
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [toolbarMode, clampToolbarPosition]);
+
+  useEffect(() => {
+    if (!toolbarLayoutReady || typeof window === "undefined") return;
+
+    if (toolbarMode === "floating") {
+      const safePosition = clampToolbarPosition(toolbarPosition);
+      window.localStorage.setItem(
+        TOOLBAR_LAYOUT_STORAGE_KEY,
+        JSON.stringify({ mode: "floating", x: safePosition.x, y: safePosition.y })
+      );
+      return;
+    }
+
+    window.localStorage.setItem(
+      TOOLBAR_LAYOUT_STORAGE_KEY,
+      JSON.stringify({
+        mode: "docked",
+        x: DEFAULT_FLOATING_POSITION.x,
+        y: DEFAULT_FLOATING_POSITION.y,
+      })
+    );
+  }, [toolbarLayoutReady, toolbarMode, toolbarPosition, clampToolbarPosition]);
+
+  useEffect(
+    () => () => {
+      finishToolbarDrag();
+    },
+    [finishToolbarDrag]
+  );
 
   const handleSetLink = () => {
     if (!editor || disabled) return;
@@ -532,13 +708,49 @@ export function RichTextEditor({
     editor.chain().focus().setFontFamily(value).run();
   };
 
+  const toolbarInlineStyle =
+    toolbarMode === "floating"
+      ? {
+          left: toolbarPosition.x,
+          top: toolbarPosition.y,
+        }
+      : undefined;
+
   if (!editor) {
     return <div className="editor-shell p-4 text-sm text-muted-foreground">Loading editor...</div>;
   }
 
   return (
     <div className="editor-shell">
-      <div className="editor-toolbar">
+      {toolbarMode === "floating" ? (
+        <div className="editor-toolbar-spacer" style={{ height: toolbarSpacerHeight }} />
+      ) : null}
+
+      <div
+        ref={toolbarRef}
+        className={`editor-toolbar ${toolbarMode === "floating" ? "editor-toolbar-floating" : ""}`}
+        style={toolbarInlineStyle}
+      >
+        <button
+          type="button"
+          title="Drag toolbar"
+          onPointerDown={handleToolbarDragStart}
+          disabled={disabled}
+          className="editor-btn editor-drag-handle"
+        >
+          Drag
+        </button>
+        {toolbarMode === "floating" ? (
+          <button
+            type="button"
+            title="Dock toolbar"
+            onClick={handleDockToolbar}
+            disabled={disabled}
+            className="editor-btn editor-drag-handle"
+          >
+            Dock
+          </button>
+        ) : null}
         <select
           className="editor-select"
           defaultValue="default"

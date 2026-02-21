@@ -19,13 +19,40 @@ export function ArticlePage({ slug, onBack }: ArticlePageProps) {
   const router = useRouter();
   const handleBack = () => (onBack ? onBack() : router.back());
   const [article, setArticle] = useState<Article | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    getPostBySlug(slug)
-      .then((post) => setArticle(mapPostToArticle(post)))
-      .catch(() => setArticle(null));
-  }, [slug]);
+    let active = true;
+    const timer = window.setTimeout(() => {
+      if (!active) return;
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      getPostBySlug(slug)
+        .then((post) => {
+          if (!active) return;
+          setArticle(mapPostToArticle(post));
+        })
+        .catch((errorValue: unknown) => {
+          if (!active) return;
+          console.error("Failed to load article:", errorValue);
+          setArticle(null);
+          setErrorMessage("Không thể tải bài viết. Vui lòng thử lại.");
+        })
+        .finally(() => {
+          if (!active) return;
+          setIsLoading(false);
+        });
+    }, 0);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [slug, retryToken]);
 
   const fullContent = useMemo(() => {
     if (!article) return "";
@@ -52,10 +79,58 @@ export function ArticlePage({ slug, onBack }: ArticlePageProps) {
     renderMathInContainer(contentRef.current);
   }, [fullContent]);
 
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        <p className="text-muted-foreground">{UI_TEXT.common.loading}</p>
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        <p className="text-muted-foreground mb-4">{errorMessage}</p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setRetryToken((prev) => prev + 1)}
+            className="px-4 py-2 border border-border hover:border-foreground transition-colors"
+          >
+            Thử lại
+          </button>
+          <button
+            type="button"
+            onClick={handleBack}
+            className="px-4 py-2 bg-foreground text-background hover:opacity-90 transition-opacity"
+          >
+            {UI_TEXT.common.back}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!article) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-12">
-        <p className="text-muted-foreground">Dang tai bai viet...</p>
+        <p className="text-muted-foreground mb-4">Không tìm thấy bài viết.</p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setRetryToken((prev) => prev + 1)}
+            className="px-4 py-2 border border-border hover:border-foreground transition-colors"
+          >
+            Thử lại
+          </button>
+          <button
+            type="button"
+            onClick={handleBack}
+            className="px-4 py-2 bg-foreground text-background hover:opacity-90 transition-opacity"
+          >
+            {UI_TEXT.common.back}
+          </button>
+        </div>
       </div>
     );
   }
@@ -80,7 +155,7 @@ export function ArticlePage({ slug, onBack }: ArticlePageProps) {
             <div className="section-label text-muted-foreground mb-4">{article.section}</div>
             <h1 className="mb-6">{article.title}</h1>
             <div className="meta pb-6 border-b border-border">
-              Boi {article.author} · Xuat ban {article.date}
+              Bởi {article.author} · Xuất bản {article.date}
             </div>
           </header>
 
@@ -99,13 +174,12 @@ export function ArticlePage({ slug, onBack }: ArticlePageProps) {
           <div ref={contentRef} className="prose" dangerouslySetInnerHTML={{ __html: fullContent }} />
 
           <div className="mt-16 pt-8 border-t border-border text-center">
-            <span className="text-2xl text-muted-foreground">◆</span>
+            <span className="text-2xl text-muted-foreground">◈</span>
           </div>
 
           <div className="mt-12 pt-8 border-t border-border">
             <div className="meta">
-              <strong>{article.author}</strong> chia se goc nhin ve thiet ke, cong nghe va cach lam viec co
-              chieu sau.
+              <strong>{article.author}</strong> chia sẻ những cái nhảm nhí mà mình thấy vui.
             </div>
           </div>
         </div>
@@ -113,4 +187,3 @@ export function ArticlePage({ slug, onBack }: ArticlePageProps) {
     </div>
   );
 }
-

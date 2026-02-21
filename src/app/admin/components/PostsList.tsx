@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Edit3, LogOut, Eye, EyeOff, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getAdminPosts, deletePost, getAdminSections, type AdminPostDto } from "@/lib/adminApiClient";
+import { trackedFetch } from "@/lib/trackedFetch";
 import { ALL_FILTER_VALUE, UI_TEXT } from "@/lib/i18n";
 
 interface PostsListProps {
@@ -45,7 +46,7 @@ export function PostsList({ onNavigate, onLogout }: PostsListProps) {
       return;
     }
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await trackedFetch("/api/auth/logout", { method: "POST" });
     } finally {
       router.push("/");
       router.refresh();
