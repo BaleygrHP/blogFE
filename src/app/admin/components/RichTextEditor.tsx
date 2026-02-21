@@ -15,8 +15,15 @@ import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
+import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
+import { FontFamily, FontSize, TextStyle } from "@tiptap/extension-text-style";
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Bold,
+  Columns3,
   Italic,
   Underline as UnderlineIcon,
   Heading1,
@@ -29,9 +36,12 @@ import {
   Minus,
   Undo2,
   Redo2,
+  Rows3,
+  Table2,
   Link2,
   Image as ImageIcon,
   FileUp,
+  Trash2,
 } from "lucide-react";
 import { uploadMediaFile } from "@/lib/adminApiClient";
 import { renderMathInContainer } from "@/lib/renderMath";
@@ -51,6 +61,30 @@ type ToolbarButtonProps = {
   disabled?: boolean;
   children: ReactNode;
 };
+
+const FONT_SIZE_OPTIONS = [
+  { label: "Mặc định", value: "default" },
+  { label: "14px", value: "14px" },
+  { label: "16px", value: "16px" },
+  { label: "18px", value: "18px" },
+  { label: "20px", value: "20px" },
+  { label: "24px", value: "24px" },
+  { label: "28px", value: "28px" },
+  { label: "32px", value: "32px" },
+];
+
+const FONT_FAMILY_OPTIONS = [
+  { label: "Mặc định", value: "default" },
+  {
+    label: "Serif",
+    value: "var(--font-body), \"Noto Serif\", \"Times New Roman\", serif",
+  },
+  {
+    label: "Sans",
+    value: "var(--font-ui), system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+  },
+  { label: "Monospace", value: "var(--font-mono), monospace" },
+];
 
 function ToolbarButton({
   title,
@@ -280,6 +314,18 @@ export function RichTextEditor({
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
+      TextStyle,
+      FontFamily,
+      FontSize,
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TextAlign.configure({
+        types: ["heading", "paragraph", "tableCell", "tableHeader"],
+      }),
       ImageNode,
       MathInlineNode,
       MathBlockNode,
@@ -454,6 +500,38 @@ export function RichTextEditor({
     editor.chain().focus().insertContent({ type: "mathBlock", attrs: { formula } }).run();
   };
 
+  const handleInsertTable = () => {
+    if (!editor || disabled) return;
+    editor
+      .chain()
+      .focus()
+      .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+      .run();
+  };
+
+  const handleSetTextAlign = (align: "left" | "center" | "right") => {
+    if (!editor || disabled) return;
+    editor.chain().focus().setTextAlign(align).run();
+  };
+
+  const handleSetFontSize = (value: string) => {
+    if (!editor || disabled) return;
+    if (value === "default") {
+      editor.chain().focus().unsetFontSize().run();
+      return;
+    }
+    editor.chain().focus().setFontSize(value).run();
+  };
+
+  const handleSetFontFamily = (value: string) => {
+    if (!editor || disabled) return;
+    if (value === "default") {
+      editor.chain().focus().unsetFontFamily().run();
+      return;
+    }
+    editor.chain().focus().setFontFamily(value).run();
+  };
+
   if (!editor) {
     return <div className="editor-shell p-4 text-sm text-muted-foreground">Loading editor...</div>;
   }
@@ -461,6 +539,32 @@ export function RichTextEditor({
   return (
     <div className="editor-shell">
       <div className="editor-toolbar">
+        <select
+          className="editor-select"
+          defaultValue="default"
+          onChange={(event) => handleSetFontFamily(event.target.value)}
+          disabled={disabled}
+          title="Font chữ"
+        >
+          {FONT_FAMILY_OPTIONS.map((option) => (
+            <option key={option.label} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className="editor-select"
+          defaultValue="default"
+          onChange={(event) => handleSetFontSize(event.target.value)}
+          disabled={disabled}
+          title="Cỡ chữ"
+        >
+          {FONT_SIZE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <ToolbarButton
           title="Bold"
           isActive={editor.isActive("bold")}
@@ -576,6 +680,68 @@ export function RichTextEditor({
         <ToolbarButton title="Insert block math" onClick={handleInsertBlockMath} disabled={disabled}>
           <span className="text-xs font-semibold">$$</span>
         </ToolbarButton>
+        <ToolbarButton title="Insert table" onClick={handleInsertTable} disabled={disabled}>
+          <Table2 className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          title="Add row"
+          onClick={() => editor.chain().focus().addRowAfter().run()}
+          disabled={disabled}
+        >
+          <Rows3 className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          title="Add column"
+          onClick={() => editor.chain().focus().addColumnAfter().run()}
+          disabled={disabled}
+        >
+          <Columns3 className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          title="Delete row"
+          onClick={() => editor.chain().focus().deleteRow().run()}
+          disabled={disabled}
+        >
+          <span className="text-[10px] font-semibold">R-</span>
+        </ToolbarButton>
+        <ToolbarButton
+          title="Delete column"
+          onClick={() => editor.chain().focus().deleteColumn().run()}
+          disabled={disabled}
+        >
+          <span className="text-[10px] font-semibold">C-</span>
+        </ToolbarButton>
+        <ToolbarButton
+          title="Delete table"
+          onClick={() => editor.chain().focus().deleteTable().run()}
+          disabled={disabled}
+        >
+          <Trash2 className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          title="Align left"
+          isActive={editor.isActive({ textAlign: "left" })}
+          onClick={() => handleSetTextAlign("left")}
+          disabled={disabled}
+        >
+          <AlignLeft className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          title="Align center"
+          isActive={editor.isActive({ textAlign: "center" })}
+          onClick={() => handleSetTextAlign("center")}
+          disabled={disabled}
+        >
+          <AlignCenter className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          title="Align right"
+          isActive={editor.isActive({ textAlign: "right" })}
+          onClick={() => handleSetTextAlign("right")}
+          disabled={disabled}
+        >
+          <AlignRight className="w-4 h-4" />
+        </ToolbarButton>
         <ToolbarButton
           title="Undo"
           onClick={() => editor.chain().focus().undo().run()}
@@ -611,4 +777,3 @@ export function RichTextEditor({
     </div>
   );
 }
-

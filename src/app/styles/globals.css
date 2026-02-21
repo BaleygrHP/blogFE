@@ -367,6 +367,22 @@
     background: var(--secondary);
   }
 
+  .editor-select {
+    height: 2rem;
+    min-width: 6.5rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--foreground);
+    padding: 0 0.45rem;
+    font-size: 0.78rem;
+    line-height: 1;
+  }
+
+  .editor-select:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   .editor-btn {
     display: inline-flex;
     align-items: center;
