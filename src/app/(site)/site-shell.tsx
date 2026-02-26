@@ -88,7 +88,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 </button>
                 <span className="text-muted-foreground">·</span>
                 <a
-                  href="mailto:editor@dailychronicle.com"
+                  href="mailto:phamngochung3032001@gmail.com"
                   className="meta text-muted-foreground hover:text-foreground underline transition-colors"
                 >
                   Liên hệ

@@ -1,4 +1,5 @@
 import type { JSONContent } from "@tiptap/core";
+import { extractPlainTextFromHtml, markdownToHtmlBestEffort } from "./markdownTransforms";
 
 export type EditorInitialContent = string | JSONContent;
 
@@ -9,8 +10,8 @@ export type RichEditorSnapshot = {
 };
 
 export type PostEditorContentPayload = {
-  contentJson: string;
-  contentHtml: string;
+  contentJson?: string;
+  contentHtml?: string;
   contentText: string;
   content: string;
   contentMd: string;
@@ -54,6 +55,10 @@ export function toEditorInitialContent(raw: string | undefined): EditorInitialCo
     if (parsed.type === "text" && typeof parsed.raw === "string") {
       return parsed.raw;
     }
+
+    if (typeof parsed.raw === "string") {
+      return parsed.raw;
+    }
   }
 
   if (looksLikeHtml(trimmed)) {
@@ -63,7 +68,13 @@ export function toEditorInitialContent(raw: string | undefined): EditorInitialCo
   return raw;
 }
 
-export function toPostPayloadFromEditor(snapshot: RichEditorSnapshot): PostEditorContentPayload {
+function toPlainTextFromMarkdown(markdown: string): string {
+  if (!markdown) return "";
+  const renderedHtml = markdownToHtmlBestEffort(markdown);
+  return extractPlainTextFromHtml(renderedHtml);
+}
+
+export function toRichPostPayloadFromEditor(snapshot: RichEditorSnapshot): PostEditorContentPayload {
   const html = snapshot.html.trim() || "<p></p>";
   const text = snapshot.text || "";
   const json = snapshot.json.trim() || defaultDocJson();
@@ -76,6 +87,20 @@ export function toPostPayloadFromEditor(snapshot: RichEditorSnapshot): PostEdito
     contentHtml: html,
     contentText: text,
     content: html,
-    contentMd: html,
+    contentMd: "",
   };
 }
+
+export function toMarkdownPostPayload(markdownRaw: string): PostEditorContentPayload {
+  const markdown = markdownRaw.trim();
+
+  return {
+    contentHtml: "",
+    contentText: toPlainTextFromMarkdown(markdown),
+    content: markdown,
+    contentMd: markdown,
+  };
+}
+
+// Backward compatibility for existing imports.
+export const toPostPayloadFromEditor = toRichPostPayloadFromEditor;
